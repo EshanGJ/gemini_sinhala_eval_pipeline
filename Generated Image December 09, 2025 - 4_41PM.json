@@ -1,0 +1,152 @@
+{
+  "document_elements": [
+    {
+      "id": "T1",
+      "text": "උදාහරණ 2",
+      "type": "TITLE",
+      "bbox": [
+        12,
+        9,
+        30,
+        12
+      ],
+      "relations": [
+        {
+          "target_id": "H1",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "H1",
+      "text": "චුම්බක අනුනාද මූර්ණ යන්ත්‍රය (MRI - Magnetic Resonance Imaging Machine)",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        14,
+        92,
+        20
+      ],
+      "relations": [
+        {
+          "target_id": "P1",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "text": "රේඩියෝ තරංග සහ ප්‍රබල චුම්බක අනුනාද (දෙශික) මගින් ශරීරයේ අභ්‍යන්තර කොටස්වල සවිස්තරාත්මක රූප සටහන් ලබා ගැනීම මෙම යන්ත්‍රය මගින් සිදු වේ. රෝග හඳුනා ගැනීමේ දී මෙන් ම ප්‍රතිකාර නිර්ණය කිරීමේ දී ද මෙම රූප උපකාරී වේ.",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        23,
+        99,
+        36
+      ],
+      "relations": [
+        {
+          "target_id": "T2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "text": "උදාහරණ 3",
+      "type": "TITLE",
+      "bbox": [
+        12,
+        39,
+        29,
+        42
+      ],
+      "relations": [
+        {
+          "target_id": "H2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "H2",
+      "text": "විද්‍යුත් තන්තු රේඛිය යන්ත්‍රය (ECG - Electrocardiogram Machine)",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        44,
+        99,
+        50
+      ],
+      "relations": [
+        {
+          "target_id": "P2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "text": "හෘද ස්පන්දනය නිරීක්ෂණය කිරීම සඳහා මෙම යන්ත්‍රය යොදා ගැනේ. හෘදයේ සිට ශරීරයේ අනෙකුත් ඉන්ද්‍රියයන් වෙත රුධිරය සැපයීමේ දී හෘදයේ ඇති වන විද්‍යුත් ස්පන්දනයට අනුව නිපදවෙන තරංග ප්‍රස්තාරික කඩදාසියක සටහන් වීම මෙහි දී සිදු වේ.",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        53,
+        99,
+        67
+      ],
+      "relations": [
+        {
+          "target_id": "T3",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "text": "උදාහරණ 4",
+      "type": "TITLE",
+      "bbox": [
+        12,
+        69,
+        31,
+        72
+      ],
+      "relations": [
+        {
+          "target_id": "H3",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "H3",
+      "text": "හෘද රෝග නිර් ගන්වීමේ යන්ත්‍රය (Cardiac Screening Machine)",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        74,
+        97,
+        80
+      ],
+      "relations": [
+        {
+          "target_id": "P3",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "text": "හෘදයේ ක්‍රියාකාරීත්වය පරිගණක තිරයක දැක්වීම මෙම යන්ත්‍රය මගින් සිදු වේ. හෘදයේ රුධිර නාල සිහින් වීම වැනි විවිධ ආසාදන තත්ත්වයන් හඳුනා ගැනීමට හැකි වීමෙන් අවශ්‍ය ප්‍රතිකාර සඳහා යොමු කිරීමට මේ නිසා පහසු වේ.",
+      "type": "PARAGRAPH",
+      "bbox": [
+        12,
+        83,
+        98,
+        96
+      ],
+      "relations": []
+    }
+  ]
+}

@@ -1,0 +1,345 @@
+{
+  "document_elements": [
+    {
+      "id": "T1",
+      "text": "Mitsunobu Reⁿ",
+      "type": "TITLE",
+      "bbox": [
+        12,
+        15,
+        32,
+        18
+      ],
+      "relations": [
+        {
+          "target_id": "N1",
+          "relation_type": "IS_LABEL_FOR"
+        }
+      ]
+    },
+    {
+      "id": "N1",
+      "text": "Sugar Reactant (OH group)",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        8,
+        5,
+        24,
+        14
+      ],
+      "relations": [
+        {
+          "target_id": "A1",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "A1",
+      "text": "DIAD, PPh₃, THF, ~50°C to rt, 2h, 80%",
+      "type": "DIAGRAM_ARROW",
+      "bbox": [
+        25,
+        4,
+        60,
+        15
+      ],
+      "relations": [
+        {
+          "target_id": "N2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N2",
+      "text": "Sugar Product (O-C(=O)-Ph)",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        63,
+        6,
+        93,
+        16
+      ],
+      "relations": []
+    },
+    {
+      "id": "T2",
+      "text": "Path Ⓐ & Ⓐ' ~> Ⓑ : ⍺ Anomer Path Ⓑ\n2 : 1",
+      "type": "PARAGRAPH",
+      "bbox": [
+        48,
+        18,
+        90,
+        23
+      ],
+      "relations": [
+        {
+          "target_id": "N2",
+          "relation_type": "IS_LABEL_FOR"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "text": "Mechanism :-",
+      "type": "TITLE",
+      "bbox": [
+        8,
+        19,
+        26,
+        21
+      ],
+      "relations": []
+    },
+    {
+      "id": "N3",
+      "text": "DIAD + PPh₃ + Ph-C(=O)-OH",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        7,
+        23,
+        64,
+        32
+      ],
+      "relations": [
+        {
+          "target_id": "A2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "A2",
+      "text": "",
+      "type": "DIAGRAM_ARROW",
+      "bbox": [
+        65,
+        28,
+        71,
+        28
+      ],
+      "relations": [
+        {
+          "target_id": "N4",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N4",
+      "text": "Betaine Intermediate",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        72,
+        24,
+        93,
+        35
+      ],
+      "relations": [
+        {
+          "target_id": "N6",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N5",
+      "text": "Sugar-OH",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        15,
+        36,
+        29,
+        45
+      ],
+      "relations": [
+        {
+          "target_id": "N6",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N6",
+      "text": "Activated PPh₃ Species",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        40,
+        36,
+        60,
+        44
+      ],
+      "relations": [
+        {
+          "target_id": "N7",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N7",
+      "text": "Oxyphosphonium Intermediate",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        71,
+        37,
+        94,
+        45
+      ],
+      "relations": [
+        {
+          "target_id": "N8",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N8",
+      "text": "Oxyphosphonium (NGP Step)",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        7,
+        50,
+        35,
+        62
+      ],
+      "relations": [
+        {
+          "target_id": "N9",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N9",
+      "text": "Acetoxonium Ion",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        68,
+        47,
+        86,
+        56
+      ],
+      "relations": [
+        {
+          "target_id": "N10",
+          "relation_type": "FLOWS_TO"
+        },
+        {
+          "target_id": "N12",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "text": "Acetoxonium Ion (Path A)",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        9,
+        68,
+        30,
+        78
+      ],
+      "relations": [
+        {
+          "target_id": "A3",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "A3",
+      "text": "Path Ⓐ NGP (SN²)",
+      "type": "DIAGRAM_ARROW",
+      "bbox": [
+        15,
+        79,
+        15,
+        83
+      ],
+      "relations": [
+        {
+          "target_id": "N11",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N11",
+      "text": "β-Anomer Product",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        8,
+        84,
+        35,
+        98
+      ],
+      "relations": []
+    },
+    {
+      "id": "T4",
+      "text": "Always Attack of Nu leads to chair like TS in Cyclohexene",
+      "type": "PARAGRAPH",
+      "bbox": [
+        33,
+        64,
+        59,
+        75
+      ],
+      "relations": [
+        {
+          "target_id": "N12",
+          "relation_type": "IS_LABEL_FOR"
+        }
+      ]
+    },
+    {
+      "id": "N12",
+      "text": "Acetoxonium Ion (Detailed TS)",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        55,
+        64,
+        82,
+        78
+      ],
+      "relations": [
+        {
+          "target_id": "A4",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "A4",
+      "text": "Path Ⓑ External Nu Attack",
+      "type": "DIAGRAM_ARROW",
+      "bbox": [
+        80,
+        74,
+        80,
+        78
+      ],
+      "relations": [
+        {
+          "target_id": "N13",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "N13",
+      "text": "⍺-Anomer Product",
+      "type": "DIAGRAM_NODE",
+      "bbox": [
+        73,
+        79,
+        94,
+        95
+      ],
+      "relations": []
+    }
+  ]
+}
