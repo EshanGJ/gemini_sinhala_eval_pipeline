@@ -1,0 +1,305 @@
+{
+  "document_elements": [
+    {
+      "id": "B1",
+      "text": "දිලීසාන වගාව සහ ජල කළමනාකරණය.",
+      "type": "TITLE",
+      "bbox": [
+        10,
+        50,
+        70,
+        80
+      ],
+      "relations": [
+        {
+          "target_id": "B2",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B2",
+      "text": "1. ජලය සකස් කිරීම",
+      "type": "LIST",
+      "bbox": [
+        10,
+        110,
+        35,
+        130
+      ],
+      "relations": [
+        {
+          "target_id": "B3",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "text": "වගාවට සුදුසු දිලීල සෝදා පිරිසිදු කරගන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        140,
+        60,
+        160
+      ],
+      "relations": [
+        {
+          "target_id": "B4",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "text": "සාමාන්‍ය ජලයෙන් (කොමර්ෂල්ඩ්) සෝදාගත් ජලය නැවත යොදන්න (5%-10% ක වැඩි දියක් අපේක්ෂා කෙරේ)",
+      "type": "LIST",
+      "bbox": [
+        15,
+        170,
+        90,
+        220
+      ],
+      "relations": [
+        {
+          "target_id": "B5",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "text": "2. බීජ වැපිරීම",
+      "type": "LIST",
+      "bbox": [
+        10,
+        250,
+        35,
+        270
+      ],
+      "relations": [
+        {
+          "target_id": "B6",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B6",
+      "text": "බීජ මට්ටම ජල මට්ටම 15 cm දක්වා වන සේ සකස්කරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        280,
+        80,
+        300
+      ],
+      "relations": [
+        {
+          "target_id": "B7",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B7",
+      "text": "දින 7කට වරක් ජල මට්ටම පිරිසිදු ජලයෙන් වෙනස් කරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        310,
+        85,
+        340
+      ],
+      "relations": [
+        {
+          "target_id": "B8",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B8",
+      "text": "ජලයේලා විද්‍යාව භාවිත කරන ආකාරය පෙන්වන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        350,
+        85,
+        370
+      ],
+      "relations": [
+        {
+          "target_id": "B9",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B9",
+      "text": "3. ජල කළමනාකරණය",
+      "type": "LIST",
+      "bbox": [
+        10,
+        400,
+        45,
+        420
+      ],
+      "relations": [
+        {
+          "target_id": "B10",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B10",
+      "text": "බිංදු ජල සම්පාදන ක්‍රමය යොදාගෙන කෘෂිකාර්මික ජලය ලබා දීම (ජලයේ 40% ක් ඉතිරි කර ගත හැක)",
+      "type": "LIST",
+      "bbox": [
+        15,
+        430,
+        90,
+        480
+      ],
+      "relations": [
+        {
+          "target_id": "B11",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B11",
+      "text": "ජල පොම්පය (Pump) ක්‍රියාත්මක කිරීමට සුදුසු ප්‍රමාණයන් සකස්කරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        490,
+        90,
+        530
+      ],
+      "relations": [
+        {
+          "target_id": "B12",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B12",
+      "text": "ගුණාත්මකභාවය පරීක්ෂා කර බැලුවා.",
+      "type": "PARAGRAPH",
+      "bbox": [
+        10,
+        560,
+        60,
+        580
+      ],
+      "relations": [
+        {
+          "target_id": "B13",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B13",
+      "text": "1. ආහාර විෂය:",
+      "type": "LIST",
+      "bbox": [
+        10,
+        610,
+        35,
+        630
+      ],
+      "relations": [
+        {
+          "target_id": "B14",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B14",
+      "text": "උඳුන් (Oven) 180.c දක්වා රත්කරමින් රත්කරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        640,
+        70,
+        660
+      ],
+      "relations": [
+        {
+          "target_id": "B15",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B15",
+      "text": "පැය 1ක් හෝ විනාඩි 60ක් ආහාර තැබීමට සිදුවීමක් නැත.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        670,
+        90,
+        710
+      ],
+      "relations": [
+        {
+          "target_id": "B16",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B16",
+      "text": "පිහිය (knife) භාවිතයෙන් පරීක්ෂා කර බැලීමක් කරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        720,
+        80,
+        750
+      ],
+      "relations": [
+        {
+          "target_id": "B17",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B17",
+      "text": "2. සුරක්ෂිතභාවය:",
+      "type": "LIST",
+      "bbox": [
+        10,
+        780,
+        45,
+        800
+      ],
+      "relations": [
+        {
+          "target_id": "B18",
+          "relation_type": "FLOWS_TO"
+        }
+      ]
+    },
+    {
+      "id": "B18",
+      "text": "කල් ඉකුත් වූ (Expired) ආහාර කිසි විටෙකත් අනුභව නොකරන්න.",
+      "type": "LIST",
+      "bbox": [
+        15,
+        810,
+        90,
+        850
+      ],
+      "relations": []
+    }
+  ]
+}
