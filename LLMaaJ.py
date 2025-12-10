@@ -654,7 +654,7 @@ Completeness,{result.get('completeness', {}).get('score', 0)},{result.get('compl
             use_container_width=True
         )
 
-@observe(name="pipelinex", as_type="chain")
+# @observe(name="pipelinex", as_type="chain")
 def main():
     # Custom CSS
     st.markdown("""
