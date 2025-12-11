@@ -209,73 +209,106 @@ def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_pa
 @observe(as_type="evaluator", name="evaluate-prediction")
 def evaluate_with_gemini(prediction, ground_truth, session_id="streamlit_session"):
     """Evaluate prediction against ground truth using Gemini."""
+    
+    # Remove response_mime_type for preview models
     eval_generation_config = types.GenerateContentConfig(
         temperature=0.0,
         top_p=0.9,
         top_k=40,
-        max_output_tokens=2048,
-        system_instruction="You are an expert evaluator for document analysis. Be thorough and fair in your assessment.",
-        response_mime_type="application/json",
+        max_output_tokens=4096,  # Increased for detailed response
+        system_instruction="""You are an expert evaluator for document analysis. 
+Be thorough and fair in your assessment.
+IMPORTANT: Return ONLY a valid JSON object. No markdown, no code blocks, no explanation outside JSON.""",
+        # NO response_mime_type here!
     )
 
     eval_prompt = f"""
-    You are evaluating a document analysis output against the ground truth.
-    
-    Analyze both texts carefully and provide a comprehensive evaluation.
-    
-    Return a JSON object with these fields:
-    {{
-        "score": <float between 0 and 1, where 1 is perfect match>,
-        "grade": <letter grade: A, B, C, D, or F>,
-        "reason": <detailed explanation of the overall score>,
-        "content_accuracy": {{
-            "score": <float 0-1>,
-            "details": <explanation of text/content accuracy>
-        }},
-        "structure_accuracy": {{
-            "score": <float 0-1>,
-            "details": <explanation of structural accuracy>
-        }},
-        "completeness": {{
-            "score": <float 0-1>,
-            "details": <explanation of how complete the analysis is>
-        }},
-        "matches": [<list of correctly identified elements>],
-        "misses": [<list of missed or incorrect elements>],
-        "extra": [<list of elements in prediction but not in ground truth>],
-        "suggestions": [<list of improvement suggestions>]
-    }}
+You are evaluating a document analysis output against the ground truth.
 
-    STRICT RULES:
-    - Output ONLY valid JSON
-    - Do NOT include backticks, markdown, or any text outside the JSON
-    - Be objective and thorough
-    - Consider partial matches
+Analyze both texts carefully and provide a comprehensive evaluation.
 
-    === GROUND TRUTH ===
-    {ground_truth}
+Return a JSON object with these fields:
+{{
+    "score": <float between 0 and 1, where 1 is perfect match>,
+    "grade": <letter grade: A, B, C, D, or F>,
+    "reason": <detailed explanation of the overall score>,
+    "content_accuracy": {{
+        "score": <float 0-1>,
+        "details": <explanation of text/content accuracy>
+    }},
+    "structure_accuracy": {{
+        "score": <float 0-1>,
+        "details": <explanation of structural accuracy>
+    }},
+    "completeness": {{
+        "score": <float 0-1>,
+        "details": <explanation of how complete the analysis is>
+    }},
+    "matches": [<list of correctly identified elements>],
+    "misses": [<list of missed or incorrect elements>],
+    "extra": [<list of elements in prediction but not in ground truth>],
+    "suggestions": [<list of improvement suggestions>]
+}}
 
-    === PREDICTION ===
-    {prediction}
-    """
+CRITICAL RULES:
+- Output ONLY the JSON object
+- Do NOT wrap in ```json``` or any markdown
+- Do NOT include any text before or after the JSON
+- Start your response with {{ and end with }}
 
-    # Use call_gemini function for evaluation
+=== GROUND TRUTH ===
+{ground_truth}
+
+=== PREDICTION ===
+{prediction}
+"""
+
     eval_result_text, _, _ = call_gemini(
         input_prompt=eval_prompt,
         ground_truth=ground_truth,
-        model_id="gemini-2.0-flash",
+        model_id="gemini-3-pro-preview",
         file_paths=None,
         generation_config=eval_generation_config,
         session_id=session_id
     )
     
+    # Robust JSON parsing
     raw_output = eval_result_text
-    clean_json = raw_output.replace("```json", "").replace("```", "").strip()
+    print(f"Raw output type: {type(raw_output)}")
+    print(f"Raw output: {raw_output[:500] if raw_output else 'None'}...")
+    
+    if raw_output is None:
+        raise ValueError("Gemini returned None response")
+    
+    # Clean the output - handle various formats
+    clean_json = raw_output.strip()
+    
+    # Remove markdown code blocks if present
+    if clean_json.startswith("```json"):
+        clean_json = clean_json[7:]
+    if clean_json.startswith("```"):
+        clean_json = clean_json[3:]
+    if clean_json.endswith("```"):
+        clean_json = clean_json[:-3]
+    clean_json = clean_json.strip()
+    
+    # Try to find JSON object if there's extra text
+    if not clean_json.startswith("{"):
+        start_idx = clean_json.find("{")
+        if start_idx != -1:
+            clean_json = clean_json[start_idx:]
+    
+    if not clean_json.endswith("}"):
+        end_idx = clean_json.rfind("}")
+        if end_idx != -1:
+            clean_json = clean_json[:end_idx + 1]
 
     try:
         result = json.loads(clean_json)
-    except Exception as e:
-        raise ValueError(f"Gemini did not return valid JSON: {clean_json}") from e
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error: {e}")
+        print(f"Attempted to parse: {clean_json[:500]}...")
+        raise ValueError(f"Gemini did not return valid JSON: {clean_json[:200]}...") from e
 
     # Ensure all expected fields exist with defaults
     result.setdefault("score", 0)
@@ -661,12 +694,6 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-        .main-header {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #1E88E5;
-            margin-bottom: 1rem;
-        }
         .section-header {
             font-size: 1.5rem;
             font-weight: 600;
@@ -692,12 +719,6 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    # Header
-    st.markdown('<p class="main-header">Document Analyzer with Gemini</p>', unsafe_allow_html=True)
-    st.markdown("Upload a document, analyze it with Gemini, and evaluate against ground truth.")
-    
-    st.divider()
-
     # Sidebar Configuration
     with st.sidebar:
         st.header("⚙️ Configuration")
@@ -715,10 +736,10 @@ def main():
         temperature = st.slider("Temperature", 0.0, 2.0, 0.0, 0.1)
         max_tokens = st.number_input("Max Output Tokens", 256, 32768, 20000, 256)
         
-        enable_thinking = st.checkbox("Enable Thinking Mode", False)
+        enable_thinking = st.checkbox("Enable Thinking Mode", True)
         thinking_budget = 0
         if enable_thinking:
-            thinking_budget = st.slider("Thinking Budget", 1024, 16384, 4096, 1024)
+            thinking_budget = st.slider("Thinking Budget", 20000, 20000, -1, 1024)
         
         st.divider()
         
@@ -896,6 +917,7 @@ def main():
             st.info("No results yet. Upload a document and analyze it first.")
 
     # Tab 3: Prepare Ground Truth (NEW TAB)
+    # Tab 3: Prepare Ground Truth (NEW TAB)
     with tab3:
         st.markdown('<p class="section-header">Prepare Ground Truth</p>', unsafe_allow_html=True)
         st.markdown("Upload your source document and prediction file, edit the prediction to create ground truth, then download.")
@@ -953,39 +975,45 @@ def main():
                 key="gt_prediction_file"
             )
             
-            # Handle file upload and removal
+            # Handle file upload WITHOUT st.rerun() - let Streamlit handle naturally
             if prediction_file is not None:
                 new_file_name = prediction_file.name
-                # Only read if it's a new file (different from last uploaded)
+                # Only update content if it's a genuinely new file
                 if st.session_state.get("gt_last_prediction_file") != new_file_name:
                     prediction_content = prediction_file.read().decode("utf-8")
-                    st.session_state.gt_prep_content = prediction_content
+                    # Update the editor content directly via the key
+                    st.session_state.gt_editor_widget = prediction_content
                     st.session_state.gt_last_prediction_file = new_file_name
-                    st.rerun()
+                    # NO st.rerun() here!
             else:
-                # File was removed (cleared) - check if we had a file before
+                # File was removed - only clear if we actually had a file before
                 if st.session_state.get("gt_last_prediction_file") is not None:
-                    st.session_state.gt_prep_content = ""
+                    st.session_state.gt_editor_widget = ""
                     st.session_state.gt_last_prediction_file = None
-                    st.rerun()
+                    # NO st.rerun() here!
             
             st.markdown("#### Edit Content")
             st.write("")
             
-            # Text area without key so it respects the value parameter
-            edited_content = st.text_area(
+            # Initialize the widget state if it doesn't exist
+            if "gt_editor_widget" not in st.session_state:
+                st.session_state.gt_editor_widget = ""
+            
+            # Text area WITH key - Streamlit manages the state automatically
+            # The value is stored in st.session_state.gt_editor_widget
+            st.text_area(
                 "Edit the prediction to create ground truth:",
-                value=st.session_state.gt_prep_content,
                 height=400,
-                placeholder="Upload a prediction file above or paste content here to edit..."
+                placeholder="Upload a prediction file above or paste content here to edit...",
+                key="gt_editor_widget"  # This is the key - value auto-syncs with session_state
             )
             
-            # Update session state with edited content
-            st.session_state.gt_prep_content = edited_content
+            # For compatibility with download section, sync to the old variable name
+            st.session_state.gt_prep_content = st.session_state.gt_editor_widget
         
         st.divider()
         
-        # Download Section
+        # Download Section (rest remains the same)
         st.markdown("### Download Ground Truth")
         
         # Determine filename
@@ -1004,11 +1032,12 @@ def main():
                 st.info(f"Default filename: **{ground_truth_filename}**")
         
         with col_download:
-            download_disabled = not st.session_state.gt_prep_content.strip()
+            content_to_download = st.session_state.get("gt_editor_widget", "")
+            download_disabled = not content_to_download.strip()
             
             st.download_button(
                 label="Download Ground Truth",
-                data=st.session_state.gt_prep_content if st.session_state.gt_prep_content else "",
+                data=content_to_download,
                 file_name=ground_truth_filename,
                 mime="text/markdown",
                 use_container_width=True,
@@ -1023,8 +1052,8 @@ def main():
         st.divider()
         st.markdown("### 📊 Content Stats")
         
-        if st.session_state.gt_prep_content:
-            content = st.session_state.gt_prep_content
+        content = st.session_state.get("gt_editor_widget", "")
+        if content:
             stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
             with stat_col1:
                 st.metric("Characters", f"{len(content):,}")
