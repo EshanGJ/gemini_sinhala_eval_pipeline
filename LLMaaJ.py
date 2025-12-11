@@ -8,6 +8,7 @@ import tempfile
 import json
 from pathlib import Path
 from datetime import datetime
+from pdf2image import convert_from_bytes
 
 # Load environment variables
 load_dotenv(".env")
@@ -102,7 +103,7 @@ Specific Instructions:
 }
 
 
-@observe(name="streamlit-gemini-call", as_type="generation", capture_input=False, capture_output=False)
+@observe(name="streamlit-gemini-call", as_type="generation", capture_input=False, capture_output=True)
 def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_paths=None, generation_config=None, session_id="streamlit_session"):
     """Process files with Gemini and trace with Langfuse."""
     with propagate_attributes(
@@ -205,7 +206,7 @@ def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_pa
                     pass
 
 
-@observe(as_type="evaluator")
+@observe(as_type="evaluator", name="evaluate-prediction")
 def evaluate_with_gemini(prediction, ground_truth, session_id="streamlit_session"):
     """Evaluate prediction against ground truth using Gemini."""
     eval_generation_config = types.GenerateContentConfig(
@@ -258,46 +259,43 @@ def evaluate_with_gemini(prediction, ground_truth, session_id="streamlit_session
     {prediction}
     """
 
-    with propagate_attributes(
-        user_id="streamlit_user",
-        session_id=session_id,
-        tags=["gemini", "evaluation"],
-    ):
-        client = init_gemini_client()
-        
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[eval_prompt],
-            config=eval_generation_config,
-        )
-        
-        raw_output = response.text
-        clean_json = raw_output.replace("```json", "").replace("```", "").strip()
+    # Use call_gemini function for evaluation
+    eval_result_text, _, _ = call_gemini(
+        input_prompt=eval_prompt,
+        ground_truth=ground_truth,
+        model_id="gemini-2.0-flash",
+        file_paths=None,
+        generation_config=eval_generation_config,
+        session_id=session_id
+    )
+    
+    raw_output = eval_result_text
+    clean_json = raw_output.replace("```json", "").replace("```", "").strip()
 
-        try:
-            result = json.loads(clean_json)
-        except Exception as e:
-            raise ValueError(f"Gemini did not return valid JSON: {clean_json}") from e
+    try:
+        result = json.loads(clean_json)
+    except Exception as e:
+        raise ValueError(f"Gemini did not return valid JSON: {clean_json}") from e
 
-        # Ensure all expected fields exist with defaults
-        result.setdefault("score", 0)
-        result.setdefault("grade", "N/A")
-        result.setdefault("reason", "No reason provided")
-        result.setdefault("content_accuracy", {"score": 0, "details": "N/A"})
-        result.setdefault("structure_accuracy", {"score": 0, "details": "N/A"})
-        result.setdefault("completeness", {"score": 0, "details": "N/A"})
-        result.setdefault("matches", [])
-        result.setdefault("misses", [])
-        result.setdefault("extra", [])
-        result.setdefault("suggestions", [])
+    # Ensure all expected fields exist with defaults
+    result.setdefault("score", 0)
+    result.setdefault("grade", "N/A")
+    result.setdefault("reason", "No reason provided")
+    result.setdefault("content_accuracy", {"score": 0, "details": "N/A"})
+    result.setdefault("structure_accuracy", {"score": 0, "details": "N/A"})
+    result.setdefault("completeness", {"score": 0, "details": "N/A"})
+    result.setdefault("matches", [])
+    result.setdefault("misses", [])
+    result.setdefault("extra", [])
+    result.setdefault("suggestions", [])
 
-        langfuse.score_current_trace(
-            name="evaluation_score",
-            value=float(result["score"]),
-            comment=result["reason"],
-        )
+    langfuse.score_current_trace(
+        name="evaluation_score",
+        value=float(result["score"]),
+        comment=result["reason"],
+    )
 
-        return result
+    return result
 
 
 def save_uploaded_file(uploaded_file):
@@ -412,7 +410,7 @@ def render_evaluation_results(result):
     """, unsafe_allow_html=True)
     
     # ========== HEADER SECTION ==========
-    st.markdown("## 📊 Evaluation Results")
+    st.markdown("## Evaluation Results")
     st.markdown(f"*Evaluated on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*")
     
     st.divider()
@@ -437,22 +435,22 @@ def render_evaluation_results(result):
     
     with col2:
         # Reason/Summary
-        st.markdown("### 📝 Evaluation Summary")
+        st.markdown("### Evaluation Summary")
         st.info(result["reason"])
         
         # Quick Stats
-        st.markdown("### 📈 Quick Stats")
+        st.markdown("### Quick Stats")
         stat_col1, stat_col2, stat_col3 = st.columns(3)
         with stat_col1:
-            st.metric("✅ Matches", len(result.get("matches", [])))
+            st.metric("Matches", len(result.get("matches", [])))
         with stat_col2:
-            st.metric("❌ Misses", len(result.get("misses", [])))
+            st.metric("Misses", len(result.get("misses", [])))
         with stat_col3:
-            st.metric("➕ Extra", len(result.get("extra", [])))
+            st.metric("Extra", len(result.get("extra", [])))
     
     with col3:
         # Progress indicators for sub-scores
-        st.markdown("### 🎯 Sub-Scores")
+        st.markdown("### Sub-Scores")
         
         content_score = result.get("content_accuracy", {}).get("score", 0)
         structure_score = result.get("structure_accuracy", {}).get("score", 0)
@@ -473,15 +471,15 @@ def render_evaluation_results(result):
     st.divider()
     
     # ========== DETAILED BREAKDOWN ==========
-    st.markdown("## 🔍 Detailed Breakdown")
+    st.markdown("## Detailed Breakdown")
     
-    detail_tab1, detail_tab2, detail_tab3 = st.tabs(["📊 Sub-Score Details", "✅❌ Matches & Misses", "💡 Suggestions"])
+    detail_tab1, detail_tab2, detail_tab3 = st.tabs(["Sub-Score Details", "Matches & Misses", "Suggestions"])
     
     with detail_tab1:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### 📄 Content Accuracy")
+            st.markdown("### Content Accuracy")
             content_info = result.get("content_accuracy", {})
             score_val = content_info.get("score", 0)
             st.markdown(f"""
@@ -492,7 +490,7 @@ def render_evaluation_results(result):
             """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("### 🏗️ Structure Accuracy")
+            st.markdown("### Structure Accuracy")
             structure_info = result.get("structure_accuracy", {})
             score_val = structure_info.get("score", 0)
             st.markdown(f"""
@@ -503,7 +501,7 @@ def render_evaluation_results(result):
             """, unsafe_allow_html=True)
         
         with col3:
-            st.markdown("### 📋 Completeness")
+            st.markdown("### Completeness")
             completeness_info = result.get("completeness", {})
             score_val = completeness_info.get("score", 0)
             st.markdown(f"""
@@ -517,7 +515,7 @@ def render_evaluation_results(result):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### ✅ Correct Matches")
+            st.markdown("### Correct Matches")
             matches = result.get("matches", [])
             if matches:
                 for match in matches:
@@ -526,7 +524,7 @@ def render_evaluation_results(result):
                 st.info("No matches recorded")
         
         with col2:
-            st.markdown("### ❌ Missed Elements")
+            st.markdown("### Missed Elements")
             misses = result.get("misses", [])
             if misses:
                 for miss in misses:
@@ -535,7 +533,7 @@ def render_evaluation_results(result):
                 st.success("No misses - great job!")
         
         with col3:
-            st.markdown("### ➕ Extra Elements")
+            st.markdown("### Extra Elements")
             extras = result.get("extra", [])
             if extras:
                 for extra in extras:
@@ -544,7 +542,7 @@ def render_evaluation_results(result):
                 st.info("No extra elements detected")
     
     with detail_tab3:
-        st.markdown("### 💡 Improvement Suggestions")
+        st.markdown("### Improvement Suggestions")
         suggestions = result.get("suggestions", [])
         if suggestions:
             for i, suggestion in enumerate(suggestions, 1):
@@ -559,24 +557,24 @@ def render_evaluation_results(result):
     st.divider()
     
     # ========== SIDE BY SIDE COMPARISON ==========
-    st.markdown("## 📑 Side-by-Side Comparison")
+    st.markdown("## Side-by-Side Comparison")
     
     compare_col1, compare_col2 = st.columns(2)
     
     with compare_col1:
-        st.markdown("### 🎯 Ground Truth")
+        st.markdown("### Ground Truth")
         with st.container(height=400):
             st.markdown(st.session_state.ground_truth)
     
     with compare_col2:
-        st.markdown("### 🤖 Prediction")
+        st.markdown("### Prediction")
         with st.container(height=400):
             st.markdown(st.session_state.prediction)
     
     st.divider()
     
     # ========== EXPORT SECTION ==========
-    st.markdown("## 📥 Export Results")
+    st.markdown("## Export Results")
     
     # Generate report
     report = f"""# Evaluation Report
@@ -627,7 +625,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
     with export_col1:
         st.download_button(
-            label="📄 Download Report (Markdown)",
+            label="Download Report (Markdown)",
             data=report,
             file_name=f"evaluation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
             mime="text/markdown",
@@ -636,7 +634,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     
     with export_col2:
         st.download_button(
-            label="📊 Download Results (JSON)",
+            label="Download Results (JSON)",
             data=json.dumps(result, indent=2),
             file_name=f"evaluation_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
@@ -652,13 +650,12 @@ Structure Accuracy,{result.get('structure_accuracy', {}).get('score', 0)},{resul
 Completeness,{result.get('completeness', {}).get('score', 0)},{result.get('completeness', {}).get('details', 'N/A').replace(',', ';')}
 """
         st.download_button(
-            label="📈 Download Summary (CSV)",
+            label="Download Summary (CSV)",
             data=csv_data,
             file_name=f"evaluation_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
             use_container_width=True
         )
-
 
 def main():
     # Custom CSS
@@ -696,7 +693,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Header
-    st.markdown('<p class="main-header">📄 Document Analyzer with Gemini</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Document Analyzer with Gemini</p>', unsafe_allow_html=True)
     st.markdown("Upload a document, analyze it with Gemini, and evaluate against ground truth.")
     
     st.divider()
@@ -706,7 +703,7 @@ def main():
         st.header("⚙️ Configuration")
         
         model_id = st.selectbox(
-            "🤖 Select Model",
+            "Select Model",
             ["gemini-3-pro-preview", "gemini-2.0-flash", "gemini-2.5-flash"],
             index=0,
         )
@@ -739,19 +736,26 @@ def main():
         st.session_state.evaluation_result = None
     if "prediction_source" not in st.session_state:
         st.session_state.prediction_source = "generated"
-    # New session states for ground truth preparation
+    # New session states for ground truth preparation (Tab 3)
     if "gt_prep_source_filename" not in st.session_state:
         st.session_state.gt_prep_source_filename = None
     if "gt_prep_content" not in st.session_state:
         st.session_state.gt_prep_content = ""
+    if "gt_last_prediction_file" not in st.session_state:
+        st.session_state.gt_last_prediction_file = None
+    # Create a consistent session ID for all traces in this user session
+    if "langfuse_session_id" not in st.session_state:
+        st.session_state.langfuse_session_id = f"streamlit_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    session_id = st.session_state.langfuse_session_id
 
     # Main content tabs - Added new "Prepare Ground Truth" tab
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📤 Upload & Analyze", 
-        "📝 Results", 
-        "🛠️ Prepare Ground Truth",
-        "✅ Evaluate", 
-        "📊 Evaluation Results"
+        "Upload & Analyze", 
+        "Results", 
+        "Prepare Ground Truth",
+        "Evaluate", 
+        "Evaluation Results"
     ])
 
     # Tab 1: Upload and Analyze
@@ -768,7 +772,7 @@ def main():
             )
             
             if uploaded_doc:
-                st.success(f"✅ Uploaded: {uploaded_doc.name}")
+                st.success(f"Uploaded: {uploaded_doc.name}")
                 if uploaded_doc.type.startswith("image/"):
                     st.image(uploaded_doc, caption="Document Preview", use_container_width=True)
                 else:
@@ -787,14 +791,14 @@ def main():
         col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
         with col_btn2:
             analyze_button = st.button(
-                "🚀 Analyze Document",
+                "Analyze Document",
                 type="primary",
                 use_container_width=True,
                 disabled=not uploaded_doc or not instruction_prompt
             )
         
         if analyze_button and uploaded_doc and instruction_prompt:
-            with st.spinner("🔄 Processing document with Gemini..."):
+            with st.spinner("Processing document with Gemini..."):
                 try:
                     temp_path = save_uploaded_file(uploaded_doc)
                     
@@ -818,7 +822,7 @@ def main():
                         model_id=model_id,
                         file_paths=temp_path,
                         generation_config=generation_config,
-                        session_id=f"streamlit_{uploaded_doc.name}"
+                        session_id=session_id
                     )
                     
                     st.session_state.prediction = prediction
@@ -829,11 +833,11 @@ def main():
                     os.unlink(temp_path)
                     langfuse.flush()
                     
-                    st.success("✅ Analysis complete! Check the Results tab.")
+                    st.success("Analysis complete! Check the Results tab.")
                     st.balloons()
                     
                 except Exception as e:
-                    st.error(f"❌ Error during analysis: {str(e)}")
+                    st.error(f"Error during analysis: {str(e)}")
 
     # Tab 2: Results
     with tab2:
@@ -842,9 +846,9 @@ def main():
             
             # Show source indicator
             if st.session_state.prediction_source == "generated":
-                st.info("📊 Showing generated prediction from document analysis")
+                st.info("Showing generated prediction from document analysis")
             else:
-                st.info("📤 Showing uploaded prediction file")
+                st.info("Showing uploaded prediction file")
             
             if st.session_state.usage_info:
                 usage = st.session_state.usage_info
@@ -870,11 +874,11 @@ def main():
             st.divider()
             
             # Download buttons
-            st.markdown("### 📥 Download Results")
+            st.markdown("### Download Results")
             col1, col2 = st.columns([1, 1])
             with col1:
                 st.download_button(
-                    label="📥 Download as Markdown",
+                    label="Download as Markdown",
                     data=st.session_state.prediction,
                     file_name=f"analysis_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                     mime="text/markdown",
@@ -882,18 +886,18 @@ def main():
                 )
             with col2:
                 st.download_button(
-                    label="📥 Download as Text",
+                    label="Download as Text",
                     data=st.session_state.prediction,
                     file_name=f"analysis_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                     mime="text/plain",
                     use_container_width=True
                 )
         else:
-            st.info("📌 No results yet. Upload a document and analyze it first.")
+            st.info("No results yet. Upload a document and analyze it first.")
 
     # Tab 3: Prepare Ground Truth (NEW TAB)
     with tab3:
-        st.markdown('<p class="section-header">🛠️ Prepare Ground Truth</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Prepare Ground Truth</p>', unsafe_allow_html=True)
         st.markdown("Upload your source document and prediction file, edit the prediction to create ground truth, then download.")
         
         st.divider()
@@ -902,7 +906,7 @@ def main():
         
         # Left Column: Source Document (PDF/Image)
         with col_left:
-            st.markdown("### 📄 Source Document")
+            st.markdown("### Source Document")
             st.markdown("Upload the original PDF or image document for reference.")
             
             source_doc = st.file_uploader(
@@ -912,33 +916,35 @@ def main():
             )
             
             if source_doc:
-                # Store the filename for later use
                 st.session_state.gt_prep_source_filename = get_file_base_name(source_doc.name)
                 
-                st.markdown(f"""
-                    <div class="file-info-box">
-                        <strong>📎 File:</strong> {source_doc.name}<br>
-                        <strong>📊 Size:</strong> {source_doc.size / 1024:.1f} KB<br>
-                        <strong>🏷️ Base Name:</strong> <code>{st.session_state.gt_prep_source_filename}</code>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # Display preview
                 st.markdown("#### Preview")
                 if source_doc.type.startswith("image/"):
                     st.image(source_doc, caption="Document Preview", use_container_width=True)
                 else:
-                    # For PDF, show info
-                    st.info(f"📎 PDF document uploaded: {source_doc.name}")
-                    # You could add PDF preview here using pdf2image or similar if needed
-                    st.markdown("*PDF preview not available. Please use an external PDF viewer.*")
+                    try:
+                        pdf_bytes = source_doc.getvalue()
+                        images = convert_from_bytes(pdf_bytes)
+                        
+                        if len(images) > 1:
+                            page_numbers = list(range(1, len(images) + 1))
+                            page_tabs = st.tabs([f"Page {i}" for i in page_numbers])
+                            
+                            for tab_idx, tab in enumerate(page_tabs):
+                                with tab:
+                                    st.image(images[tab_idx], caption=f"Page {tab_idx + 1}", use_container_width=True)
+                        else:
+                            st.image(images[0], caption="PDF Preview", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Could not preview PDF: {str(e)}")
+                        st.info("📎 PDF document uploaded but preview failed. Please check if poppler is installed.")
             else:
-                st.info("👆 Upload a source document to begin")
+                st.info("Upload a source document to begin")
                 st.session_state.gt_prep_source_filename = None
         
         # Right Column: Prediction File & Editor
         with col_right:
-            st.markdown("### ✏️ Edit Prediction → Ground Truth")
+            st.markdown("### Edit Prediction → Ground Truth")
             st.markdown("Upload a prediction markdown file, edit it, and download as ground truth.")
             
             prediction_file = st.file_uploader(
@@ -947,29 +953,40 @@ def main():
                 key="gt_prediction_file"
             )
             
-            if prediction_file:
-                prediction_content = prediction_file.read().decode("utf-8")
-                st.session_state.gt_prep_content = prediction_content
-                st.success(f"✅ Loaded: {prediction_file.name}")
+            # Handle file upload and removal
+            if prediction_file is not None:
+                new_file_name = prediction_file.name
+                # Only read if it's a new file (different from last uploaded)
+                if st.session_state.get("gt_last_prediction_file") != new_file_name:
+                    prediction_content = prediction_file.read().decode("utf-8")
+                    st.session_state.gt_prep_content = prediction_content
+                    st.session_state.gt_last_prediction_file = new_file_name
+                    st.rerun()
+            else:
+                # File was removed (cleared) - check if we had a file before
+                if st.session_state.get("gt_last_prediction_file") is not None:
+                    st.session_state.gt_prep_content = ""
+                    st.session_state.gt_last_prediction_file = None
+                    st.rerun()
             
-            # Text editor for ground truth
             st.markdown("#### Edit Content")
+            st.write("")
+            
+            # Text area without key so it respects the value parameter
             edited_content = st.text_area(
                 "Edit the prediction to create ground truth:",
                 value=st.session_state.gt_prep_content,
                 height=400,
-                key="gt_editor",
                 placeholder="Upload a prediction file above or paste content here to edit..."
             )
             
             # Update session state with edited content
-            if edited_content != st.session_state.gt_prep_content:
-                st.session_state.gt_prep_content = edited_content
+            st.session_state.gt_prep_content = edited_content
         
         st.divider()
         
         # Download Section
-        st.markdown("### 📥 Download Ground Truth")
+        st.markdown("### Download Ground Truth")
         
         # Determine filename
         if st.session_state.gt_prep_source_filename:
@@ -981,16 +998,16 @@ def main():
         
         with col_info:
             if st.session_state.gt_prep_source_filename:
-                st.success(f"📝 Output filename: **{ground_truth_filename}**")
+                st.success(f"Output filename: **{ground_truth_filename}**")
             else:
-                st.warning("⚠️ Upload a source document (left panel) to auto-generate filename with matching base name.")
+                st.warning("Upload a source document (left panel) to auto-generate filename with matching base name.")
                 st.info(f"Default filename: **{ground_truth_filename}**")
         
         with col_download:
             download_disabled = not st.session_state.gt_prep_content.strip()
             
             st.download_button(
-                label="📥 Download Ground Truth",
+                label="Download Ground Truth",
                 data=st.session_state.gt_prep_content if st.session_state.gt_prep_content else "",
                 file_name=ground_truth_filename,
                 mime="text/markdown",
@@ -1033,46 +1050,16 @@ def main():
         with col1:
             st.markdown("### 🤖 Prediction")
             
-            prediction_source = st.radio(
-                "Prediction Source",
-                ["Use Generated Prediction", "Upload Prediction File"],
-                horizontal=True,
-                key="pred_source_radio"
+            prediction_file = st.file_uploader(
+                "Upload Prediction (Markdown or Text)",
+                type=["md", "txt", "text"],
+                key="prediction_upload"
             )
             
-            if prediction_source == "Upload Prediction File":
-                prediction_file = st.file_uploader(
-                    "Upload Prediction (Markdown or Text)",
-                    type=["md", "txt", "text"],
-                    key="prediction_upload"
-                )
-                
-                if prediction_file:
-                    prediction_content = prediction_file.read().decode("utf-8")
-                    st.session_state.prediction = prediction_content
-                    st.session_state.prediction_source = "uploaded"
-                    st.session_state.usage_info = None
-                    st.success(f"✅ Loaded prediction: {prediction_file.name}")
-                
-                st.markdown("**Or paste prediction directly:**")
-                pasted_prediction = st.text_area(
-                    "Paste Prediction",
-                    height=150,
-                    placeholder="Paste your prediction text here...",
-                    key="pasted_pred"
-                )
-                
-                if pasted_prediction:
-                    st.session_state.prediction = pasted_prediction
-                    st.session_state.prediction_source = "uploaded"
-                    st.session_state.usage_info = None
-            else:
-                if st.session_state.prediction and st.session_state.prediction_source == "generated":
-                    st.success("✅ Using generated prediction from analysis")
-                elif st.session_state.prediction:
-                    st.info("ℹ️ Using previously loaded prediction")
-                else:
-                    st.warning("⚠️ No generated prediction available. Please analyze a document first or upload a prediction file.")
+            if prediction_file:
+                prediction_content = prediction_file.read().decode("utf-8")
+                st.session_state.prediction = prediction_content
+                st.success(f"{prediction_file.name}")
             
             # Preview prediction
             if st.session_state.prediction:
@@ -1092,18 +1079,7 @@ def main():
             if ground_truth_file:
                 ground_truth_content = ground_truth_file.read().decode("utf-8")
                 st.session_state.ground_truth = ground_truth_content
-                st.success(f"✅ Loaded ground truth: {ground_truth_file.name}")
-            
-            st.markdown("**Or paste ground truth directly:**")
-            pasted_ground_truth = st.text_area(
-                "Paste Ground Truth",
-                height=150,
-                placeholder="Paste your ground truth text here...",
-                key="pasted_gt"
-            )
-            
-            if pasted_ground_truth:
-                st.session_state.ground_truth = pasted_ground_truth
+                st.success(f"{ground_truth_file.name}")
             
             # Preview ground truth
             if st.session_state.ground_truth:
@@ -1111,6 +1087,13 @@ def main():
                     st.markdown(st.session_state.ground_truth[:2000] + ("..." if len(st.session_state.ground_truth) > 2000 else ""))
         
         st.divider()
+        
+        # Check for duplicate file uploads
+        duplicate_files = False
+        if prediction_file and ground_truth_file:
+            if prediction_file.name == ground_truth_file.name:
+                st.error("❌ Error: Cannot upload the same file for both prediction and ground truth. Please upload different files.")
+                duplicate_files = True
         
         # Status summary
         st.markdown("### 📋 Evaluation Checklist")
@@ -1132,7 +1115,7 @@ def main():
         st.divider()
         
         # Evaluation button
-        can_evaluate = st.session_state.prediction and st.session_state.ground_truth
+        can_evaluate = st.session_state.prediction and st.session_state.ground_truth and not duplicate_files
         
         col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
         with col_btn2:
@@ -1149,6 +1132,8 @@ def main():
                 missing.append("prediction")
             if not st.session_state.ground_truth:
                 missing.append("ground truth")
+            if duplicate_files:
+                missing.append("different files for prediction and ground truth")
             st.warning(f"⚠️ Please provide: {', '.join(missing)}")
         
         if evaluate_button and can_evaluate:
@@ -1157,7 +1142,7 @@ def main():
                     eval_result = evaluate_with_gemini(
                         prediction=st.session_state.prediction,
                         ground_truth=st.session_state.ground_truth,
-                        session_id="streamlit_evaluation"
+                        session_id=session_id
                     )
                     
                     st.session_state.evaluation_result = eval_result
