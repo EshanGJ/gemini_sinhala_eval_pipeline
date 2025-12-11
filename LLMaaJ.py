@@ -308,6 +308,11 @@ def save_uploaded_file(uploaded_file):
         return tmp_file.name
 
 
+def get_file_base_name(filename):
+    """Extract base name without extension from filename."""
+    return Path(filename).stem
+
+
 def get_score_color(score):
     """Return color based on score."""
     if score >= 0.8:
@@ -654,7 +659,7 @@ Completeness,{result.get('completeness', {}).get('score', 0)},{result.get('compl
             use_container_width=True
         )
 
-# @observe(name="pipelinex", as_type="chain")
+
 def main():
     # Custom CSS
     st.markdown("""
@@ -679,6 +684,13 @@ def main():
             height: 50px;
             padding-left: 20px;
             padding-right: 20px;
+        }
+        .file-info-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -725,9 +737,22 @@ def main():
         st.session_state.ground_truth = None
     if "evaluation_result" not in st.session_state:
         st.session_state.evaluation_result = None
+    if "prediction_source" not in st.session_state:
+        st.session_state.prediction_source = "generated"
+    # New session states for ground truth preparation
+    if "gt_prep_source_filename" not in st.session_state:
+        st.session_state.gt_prep_source_filename = None
+    if "gt_prep_content" not in st.session_state:
+        st.session_state.gt_prep_content = ""
 
-    # Main content tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload & Analyze", "📝 Results", "✅ Evaluate", "📊 Evaluation Results"])
+    # Main content tabs - Added new "Prepare Ground Truth" tab
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📤 Upload & Analyze", 
+        "📝 Results", 
+        "🛠️ Prepare Ground Truth",
+        "✅ Evaluate", 
+        "📊 Evaluation Results"
+    ])
 
     # Tab 1: Upload and Analyze
     with tab1:
@@ -739,6 +764,7 @@ def main():
             uploaded_doc = st.file_uploader(
                 "Upload PDF or Image",
                 type=["pdf", "png", "jpg", "jpeg", "webp", "gif"],
+                key="doc_uploader"
             )
             
             if uploaded_doc:
@@ -797,6 +823,7 @@ def main():
                     
                     st.session_state.prediction = prediction
                     st.session_state.usage_info = usage_info
+                    st.session_state.prediction_source = "generated"
                     st.session_state.evaluation_result = None
                     
                     os.unlink(temp_path)
@@ -812,6 +839,12 @@ def main():
     with tab2:
         if st.session_state.prediction:
             st.markdown('<p class="section-header">Analysis Results</p>', unsafe_allow_html=True)
+            
+            # Show source indicator
+            if st.session_state.prediction_source == "generated":
+                st.info("📊 Showing generated prediction from document analysis")
+            else:
+                st.info("📤 Showing uploaded prediction file")
             
             if st.session_state.usage_info:
                 usage = st.session_state.usage_info
@@ -835,93 +868,309 @@ def main():
                 st.code(st.session_state.prediction, language="markdown")
             
             st.divider()
+            
+            # Download buttons
+            st.markdown("### 📥 Download Results")
             col1, col2 = st.columns([1, 1])
             with col1:
                 st.download_button(
                     label="📥 Download as Markdown",
                     data=st.session_state.prediction,
-                    file_name="analysis_result.md",
-                    mime="text/markdown"
+                    file_name=f"analysis_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    use_container_width=True
                 )
             with col2:
                 st.download_button(
                     label="📥 Download as Text",
                     data=st.session_state.prediction,
-                    file_name="analysis_result.txt",
-                    mime="text/plain"
+                    file_name=f"analysis_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    use_container_width=True
                 )
         else:
             st.info("📌 No results yet. Upload a document and analyze it first.")
 
-    # Tab 3: Evaluate
+    # Tab 3: Prepare Ground Truth (NEW TAB)
     with tab3:
-        st.markdown('<p class="section-header">Upload Ground Truth</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">🛠️ Prepare Ground Truth</p>', unsafe_allow_html=True)
+        st.markdown("Upload your source document and prediction file, edit the prediction to create ground truth, then download.")
         
-        if not st.session_state.prediction:
-            st.warning("⚠️ Please analyze a document first before evaluation.")
+        st.divider()
+        
+        col_left, col_right = st.columns([1, 1])
+        
+        # Left Column: Source Document (PDF/Image)
+        with col_left:
+            st.markdown("### 📄 Source Document")
+            st.markdown("Upload the original PDF or image document for reference.")
+            
+            source_doc = st.file_uploader(
+                "Upload PDF or Image",
+                type=["pdf", "png", "jpg", "jpeg", "webp", "gif"],
+                key="gt_source_doc"
+            )
+            
+            if source_doc:
+                # Store the filename for later use
+                st.session_state.gt_prep_source_filename = get_file_base_name(source_doc.name)
+                
+                st.markdown(f"""
+                    <div class="file-info-box">
+                        <strong>📎 File:</strong> {source_doc.name}<br>
+                        <strong>📊 Size:</strong> {source_doc.size / 1024:.1f} KB<br>
+                        <strong>🏷️ Base Name:</strong> <code>{st.session_state.gt_prep_source_filename}</code>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Display preview
+                st.markdown("#### Preview")
+                if source_doc.type.startswith("image/"):
+                    st.image(source_doc, caption="Document Preview", use_container_width=True)
+                else:
+                    # For PDF, show info
+                    st.info(f"📎 PDF document uploaded: {source_doc.name}")
+                    # You could add PDF preview here using pdf2image or similar if needed
+                    st.markdown("*PDF preview not available. Please use an external PDF viewer.*")
+            else:
+                st.info("👆 Upload a source document to begin")
+                st.session_state.gt_prep_source_filename = None
+        
+        # Right Column: Prediction File & Editor
+        with col_right:
+            st.markdown("### ✏️ Edit Prediction → Ground Truth")
+            st.markdown("Upload a prediction markdown file, edit it, and download as ground truth.")
+            
+            prediction_file = st.file_uploader(
+                "Upload Prediction (Markdown or Text)",
+                type=["md", "txt", "text"],
+                key="gt_prediction_file"
+            )
+            
+            if prediction_file:
+                prediction_content = prediction_file.read().decode("utf-8")
+                st.session_state.gt_prep_content = prediction_content
+                st.success(f"✅ Loaded: {prediction_file.name}")
+            
+            # Text editor for ground truth
+            st.markdown("#### Edit Content")
+            edited_content = st.text_area(
+                "Edit the prediction to create ground truth:",
+                value=st.session_state.gt_prep_content,
+                height=400,
+                key="gt_editor",
+                placeholder="Upload a prediction file above or paste content here to edit..."
+            )
+            
+            # Update session state with edited content
+            if edited_content != st.session_state.gt_prep_content:
+                st.session_state.gt_prep_content = edited_content
+        
+        st.divider()
+        
+        # Download Section
+        st.markdown("### 📥 Download Ground Truth")
+        
+        # Determine filename
+        if st.session_state.gt_prep_source_filename:
+            ground_truth_filename = f"{st.session_state.gt_prep_source_filename}_ground_truth.md"
         else:
-            col1, col2 = st.columns([1, 1])
+            ground_truth_filename = f"ground_truth_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        
+        col_info, col_download = st.columns([2, 1])
+        
+        with col_info:
+            if st.session_state.gt_prep_source_filename:
+                st.success(f"📝 Output filename: **{ground_truth_filename}**")
+            else:
+                st.warning("⚠️ Upload a source document (left panel) to auto-generate filename with matching base name.")
+                st.info(f"Default filename: **{ground_truth_filename}**")
+        
+        with col_download:
+            download_disabled = not st.session_state.gt_prep_content.strip()
             
-            with col1:
-                ground_truth_file = st.file_uploader(
-                    "Upload Ground Truth (Markdown or Text)",
-                    type=["md", "txt", "text"],
-                )
-                
-                if ground_truth_file:
-                    ground_truth_content = ground_truth_file.read().decode("utf-8")
-                    st.session_state.ground_truth = ground_truth_content
-                    st.success(f"✅ Loaded: {ground_truth_file.name}")
-                
-                st.markdown("**Or paste ground truth directly:**")
-                pasted_ground_truth = st.text_area(
-                    "Paste Ground Truth",
-                    height=200,
-                    placeholder="Paste your ground truth text here..."
-                )
-                
-                if pasted_ground_truth:
-                    st.session_state.ground_truth = pasted_ground_truth
-            
-            with col2:
-                if st.session_state.ground_truth:
-                    st.markdown("**Ground Truth Preview:**")
-                    with st.expander("View Ground Truth", expanded=True):
-                        st.markdown(st.session_state.ground_truth)
-            
-            st.divider()
-            
-            if st.session_state.ground_truth:
-                col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-                with col_btn2:
-                    evaluate_button = st.button(
-                        "🎯 Run Evaluation",
-                        type="primary",
-                        use_container_width=True
-                    )
-                
-                if evaluate_button:
-                    with st.spinner("🔄 Evaluating with Gemini..."):
-                        try:
-                            eval_result = evaluate_with_gemini(
-                                prediction=st.session_state.prediction,
-                                ground_truth=st.session_state.ground_truth,
-                                session_id="streamlit_evaluation"
-                            )
-                            
-                            st.session_state.evaluation_result = eval_result
-                            langfuse.flush()
-                            
-                            st.success("✅ Evaluation complete! Check the 'Evaluation Results' tab.")
-                            
-                            langfuse.flush()
-                            
-                        except Exception as e:
-                            langfuse.flush()
-                            st.error(f"❌ Evaluation error: {str(e)}")
+            st.download_button(
+                label="📥 Download Ground Truth",
+                data=st.session_state.gt_prep_content if st.session_state.gt_prep_content else "",
+                file_name=ground_truth_filename,
+                mime="text/markdown",
+                use_container_width=True,
+                disabled=download_disabled,
+                type="primary"
+            )
+        
+        if download_disabled:
+            st.warning("⚠️ Please add some content to the editor before downloading.")
+        
+        # Quick stats
+        st.divider()
+        st.markdown("### 📊 Content Stats")
+        
+        if st.session_state.gt_prep_content:
+            content = st.session_state.gt_prep_content
+            stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+            with stat_col1:
+                st.metric("Characters", f"{len(content):,}")
+            with stat_col2:
+                st.metric("Words", f"{len(content.split()):,}")
+            with stat_col3:
+                st.metric("Lines", f"{len(content.splitlines()):,}")
+            with stat_col4:
+                st.metric("Size", f"{len(content.encode('utf-8')) / 1024:.2f} KB")
+        else:
+            st.info("No content to analyze yet.")
 
-    # Tab 4: Evaluation Results (NEW DEDICATED TAB)
+    # Tab 4: Evaluate
     with tab4:
+        st.markdown('<p class="section-header">Evaluation Setup</p>', unsafe_allow_html=True)
+        st.markdown("Upload both **prediction** and **ground truth** files for evaluation, or use the generated prediction from analysis.")
+        
+        st.divider()
+        
+        col1, col2 = st.columns([1, 1])
+        
+        # Left column: Prediction
+        with col1:
+            st.markdown("### 🤖 Prediction")
+            
+            prediction_source = st.radio(
+                "Prediction Source",
+                ["Use Generated Prediction", "Upload Prediction File"],
+                horizontal=True,
+                key="pred_source_radio"
+            )
+            
+            if prediction_source == "Upload Prediction File":
+                prediction_file = st.file_uploader(
+                    "Upload Prediction (Markdown or Text)",
+                    type=["md", "txt", "text"],
+                    key="prediction_upload"
+                )
+                
+                if prediction_file:
+                    prediction_content = prediction_file.read().decode("utf-8")
+                    st.session_state.prediction = prediction_content
+                    st.session_state.prediction_source = "uploaded"
+                    st.session_state.usage_info = None
+                    st.success(f"✅ Loaded prediction: {prediction_file.name}")
+                
+                st.markdown("**Or paste prediction directly:**")
+                pasted_prediction = st.text_area(
+                    "Paste Prediction",
+                    height=150,
+                    placeholder="Paste your prediction text here...",
+                    key="pasted_pred"
+                )
+                
+                if pasted_prediction:
+                    st.session_state.prediction = pasted_prediction
+                    st.session_state.prediction_source = "uploaded"
+                    st.session_state.usage_info = None
+            else:
+                if st.session_state.prediction and st.session_state.prediction_source == "generated":
+                    st.success("✅ Using generated prediction from analysis")
+                elif st.session_state.prediction:
+                    st.info("ℹ️ Using previously loaded prediction")
+                else:
+                    st.warning("⚠️ No generated prediction available. Please analyze a document first or upload a prediction file.")
+            
+            # Preview prediction
+            if st.session_state.prediction:
+                with st.expander("📄 Preview Prediction", expanded=False):
+                    st.markdown(st.session_state.prediction[:2000] + ("..." if len(st.session_state.prediction) > 2000 else ""))
+        
+        # Right column: Ground Truth
+        with col2:
+            st.markdown("### 🎯 Ground Truth")
+            
+            ground_truth_file = st.file_uploader(
+                "Upload Ground Truth (Markdown or Text)",
+                type=["md", "txt", "text"],
+                key="ground_truth_upload"
+            )
+            
+            if ground_truth_file:
+                ground_truth_content = ground_truth_file.read().decode("utf-8")
+                st.session_state.ground_truth = ground_truth_content
+                st.success(f"✅ Loaded ground truth: {ground_truth_file.name}")
+            
+            st.markdown("**Or paste ground truth directly:**")
+            pasted_ground_truth = st.text_area(
+                "Paste Ground Truth",
+                height=150,
+                placeholder="Paste your ground truth text here...",
+                key="pasted_gt"
+            )
+            
+            if pasted_ground_truth:
+                st.session_state.ground_truth = pasted_ground_truth
+            
+            # Preview ground truth
+            if st.session_state.ground_truth:
+                with st.expander("📄 Preview Ground Truth", expanded=False):
+                    st.markdown(st.session_state.ground_truth[:2000] + ("..." if len(st.session_state.ground_truth) > 2000 else ""))
+        
+        st.divider()
+        
+        # Status summary
+        st.markdown("### 📋 Evaluation Checklist")
+        status_col1, status_col2 = st.columns(2)
+        
+        with status_col1:
+            if st.session_state.prediction:
+                source_label = "generated" if st.session_state.prediction_source == "generated" else "uploaded"
+                st.success(f"✅ Prediction ready ({source_label})")
+            else:
+                st.error("❌ Prediction not available")
+        
+        with status_col2:
+            if st.session_state.ground_truth:
+                st.success("✅ Ground truth ready")
+            else:
+                st.error("❌ Ground truth not available")
+        
+        st.divider()
+        
+        # Evaluation button
+        can_evaluate = st.session_state.prediction and st.session_state.ground_truth
+        
+        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+        with col_btn2:
+            evaluate_button = st.button(
+                "🎯 Run Evaluation",
+                type="primary",
+                use_container_width=True,
+                disabled=not can_evaluate
+            )
+        
+        if not can_evaluate:
+            missing = []
+            if not st.session_state.prediction:
+                missing.append("prediction")
+            if not st.session_state.ground_truth:
+                missing.append("ground truth")
+            st.warning(f"⚠️ Please provide: {', '.join(missing)}")
+        
+        if evaluate_button and can_evaluate:
+            with st.spinner("🔄 Evaluating with Gemini..."):
+                try:
+                    eval_result = evaluate_with_gemini(
+                        prediction=st.session_state.prediction,
+                        ground_truth=st.session_state.ground_truth,
+                        session_id="streamlit_evaluation"
+                    )
+                    
+                    st.session_state.evaluation_result = eval_result
+                    langfuse.flush()
+                    
+                    st.success("✅ Evaluation complete! Check the 'Evaluation Results' tab.")
+                    
+                except Exception as e:
+                    langfuse.flush()
+                    st.error(f"❌ Evaluation error: {str(e)}")
+
+    # Tab 5: Evaluation Results
+    with tab5:
         if st.session_state.evaluation_result:
             render_evaluation_results(st.session_state.evaluation_result)
         else:
@@ -935,7 +1184,7 @@ def main():
             check3 = "✅" if st.session_state.evaluation_result else "⬜"
             
             st.markdown(f"""
-            {check1} **Step 1:** Analyze a document (Upload & Analyze tab)
+            {check1} **Step 1:** Get prediction (Analyze document OR upload prediction file)
             
             {check2} **Step 2:** Upload ground truth (Evaluate tab)
             
@@ -956,3 +1205,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
