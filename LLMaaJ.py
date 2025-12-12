@@ -829,9 +829,9 @@ def main():
                         "system_instruction": "You are an expert Document Analyzer.",
                     }
                     
-                    if enable_thinking:
+                    if True:
                         gen_config_params["thinking_config"] = types.ThinkingConfig(
-                            thinking_budget=thinking_budget,
+                            thinking_budget=-1,
                             include_thoughts=True,
                         )
                     
