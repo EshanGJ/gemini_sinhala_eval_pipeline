@@ -215,7 +215,7 @@ def evaluate_with_gemini(prediction, ground_truth, session_id="streamlit_session
         temperature=0.0,
         top_p=0.9,
         top_k=40,
-        max_output_tokens=4096,  # Increased for detailed response
+        max_output_tokens=20000,  # Increased for detailed response
         system_instruction="""You are an expert evaluator for document analysis. 
 Be thorough and fair in your assessment.
 IMPORTANT: Return ONLY a valid JSON object. No markdown, no code blocks, no explanation outside JSON.""",
@@ -734,7 +734,7 @@ def main():
         st.subheader("Generation Settings")
         
         temperature = st.slider("Temperature", 0.0, 2.0, 0.0, 0.1)
-        max_tokens = st.number_input("Max Output Tokens", 256, 32768, 20000, 256)
+        max_tokens = st.number_input("Max Output Tokens", 256, 100000, 100000, 256)
         
         enable_thinking = st.checkbox("Enable Thinking Mode", True)
         thinking_budget = 0
@@ -822,7 +822,7 @@ def main():
             with st.spinner("Processing document with Gemini..."):
                 try:
                     temp_path = save_uploaded_file(uploaded_doc)
-                    
+                    print(max_tokens)
                     gen_config_params = {
                         "temperature": temperature,
                         "max_output_tokens": max_tokens,
