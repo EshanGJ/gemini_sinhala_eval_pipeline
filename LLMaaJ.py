@@ -831,7 +831,7 @@ def main():
                     
                     if True:
                         gen_config_params["thinking_config"] = types.ThinkingConfig(
-                            thinking_budget=-1,
+                            thinking_level="high",
                             include_thoughts=True,
                         )
                     
