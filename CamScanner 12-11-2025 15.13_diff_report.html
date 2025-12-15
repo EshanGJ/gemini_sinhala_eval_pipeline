@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diff Visualization Report</title>
+    <style>
+        
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans Sinhala', 'Iskoola Pota', 'Malithi Web', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.8;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 12px;
+            padding: 20px 28px;
+            margin-bottom: 24px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(17, 153, 142, 0.3);
+        }
+
+        .score-card.low {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+
+        .score-card.medium {
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+        }
+
+        .score-value {
+            font-size: 48px;
+            font-weight: 700;
+        }
+
+        .score-label {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 2px solid;
+        }
+
+        .legend-color.delete {
+            background: #fecaca;
+            border-color: #dc2626;
+        }
+
+        .legend-color.insert {
+            background: #bbf7d0;
+            border-color: #16a34a;
+        }
+
+        .legend-color.replace {
+            background: #fed7aa;
+            border-color: #ea580c;
+        }
+
+        .legend-color.equal {
+            background: #ffffff;
+            border-color: #d1d5db;
+        }
+
+        .section-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .section-score {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .diff-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+
+        .diff-column {
+            padding: 20px 24px;
+            min-height: 100px;
+        }
+
+        .diff-column.gt {
+            background: #fefefe;
+            border-right: 2px solid #e5e7eb;
+        }
+
+        .diff-column.pred {
+            background: #f9fafb;
+        }
+
+        .column-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid;
+        }
+
+        .column-header.gt {
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+
+        .column-header.pred {
+            color: #16a34a;
+            border-color: #bbf7d0;
+        }
+
+        .diff-content {
+            font-size: 16px;
+            line-height: 2;
+            word-wrap: break-word;
+            color: #374151;
+        }
+
+        .word {
+            display: inline;
+            padding: 2px 0;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .word:hover {
+            transform: scale(1.05);
+        }
+
+        .word.equal {
+            color: #374151;
+        }
+
+        .word.delete {
+            background: #fecaca;
+            color: #991b1b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border-bottom: 2px solid #dc2626;
+            font-weight: 600;
+        }
+
+        .word.insert {
+            background: #bbf7d0;
+            color: #166534;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border-bottom: 2px solid #16a34a;
+            font-weight: 600;
+        }
+
+        .word.replace {
+            background: #fed7aa;
+            color: #9a3412;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border-bottom: 2px solid #ea580c;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .stat-card.delete .stat-value { color: #dc2626; }
+        .stat-card.insert .stat-value { color: #16a34a; }
+        .stat-card.replace .stat-value { color: #ea580c; }
+        .stat-card.equal .stat-value { color: #6b7280; }
+
+        .empty-text {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .diff-container {
+                grid-template-columns: 1fr;
+            }
+
+            .diff-column.gt {
+                border-right: none;
+                border-bottom: 2px solid #e5e7eb;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .legend {
+                gap: 16px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .section-card {
+                break-inside: avoid;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Document Comparison Report</h1>
+            <div class="subtitle">Generated on 2025-12-15 09:43:21</div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color delete"></div>
+                <span>Deleted (in GT only)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color insert"></div>
+                <span>Inserted (in Pred only)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color replace"></div>
+                <span>Replaced/Changed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color equal"></div>
+                <span>Matched</span>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card equal">
+                <div class="stat-value">128</div>
+                <div class="stat-label">Words Matched</div>
+            </div>
+            <div class="stat-card delete">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Words Deleted</div>
+            </div>
+            <div class="stat-card insert">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Words Inserted</div>
+            </div>
+            <div class="stat-card replace">
+                <div class="stat-value">141</div>
+                <div class="stat-label">Words Replaced</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 32px;">
+            
+            <div class="section-card">
+                <div class="section-header">
+                    <span class="section-title">Whole Document</span>
+                    <span class="section-score">Score: 42.8%</span>
+                </div>
+                <div class="diff-container">
+                    <div class="diff-column gt">
+                        <div class="column-header gt">Ground Truth</div>
+                        <div class="diff-content">
+                            <span class="word equal" title="EQUAL">No:</span> <span class="word equal" title="EQUAL">297</span> <span class="word equal" title="EQUAL">Date:</span> <span class="word equal" title="EQUAL">........................</span> <span class="word equal" title="EQUAL">ගලක්</span> <span class="word replace" title="REPLACE">එසවීමට</span> <span class="word equal" title="EQUAL">දණ්ඩක්</span> <span class="word equal" title="EQUAL">යොදා</span> <span class="word equal" title="EQUAL">ගන්නා</span> <span class="word equal" title="EQUAL">අවස්ථාව</span> <span class="word equal" title="EQUAL">සලකමු.</span> <span class="word equal" title="EQUAL">දණ්ඩට</span> <span class="word equal" title="EQUAL">යටින්</span> <span class="word equal" title="EQUAL">තබා</span> <span class="word equal" title="EQUAL">ඇති</span> <span class="word equal" title="EQUAL">ලී</span> <span class="word equal" title="EQUAL">කොටය</span> <span class="word equal" title="EQUAL">(ආධාරකය)</span> <span class="word replace" title="REPLACE">ධරයවන</span> <span class="word equal" title="EQUAL">අතර</span> <span class="word equal" title="EQUAL">දණ්ඩ</span> <span class="word equal" title="EQUAL">මගින්</span> <span class="word replace" title="REPLACE">එසවිය</span> <span class="word replace" title="REPLACE">යුතු</span> <span class="word equal" title="EQUAL">ගල</span> <span class="word equal" title="EQUAL">(දණ්ඩ</span> <span class="word equal" title="EQUAL">මත</span> <span class="word replace" title="REPLACE">රඳවාගෙන</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">වස්තුව)</span> <span class="word replace" title="REPLACE">භාරයයි.</span> <span class="word replace" title="REPLACE">මෙම</span> <span class="word equal" title="EQUAL">දණ්ඩේ</span> <span class="word equal" title="EQUAL">අනික්</span> <span class="word equal" title="EQUAL">කෙළවරට</span> <span class="word equal" title="EQUAL">යොදන</span> <span class="word equal" title="EQUAL">බලය</span> <span class="word equal" title="EQUAL">(ගල</span> <span class="word replace" title="REPLACE">එසවීමට</span> <span class="word equal" title="EQUAL">යොදන</span> <span class="word equal" title="EQUAL">බලය)</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word equal" title="EQUAL">වේ.</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word replace" title="REPLACE">පිහිටි</span> <span class="word replace" title="REPLACE">ස්ථානයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word equal" title="EQUAL">ද,</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word replace" title="REPLACE">යොදනු</span> <span class="word equal" title="EQUAL">ලබන</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word replace" title="REPLACE">ද</span> <span class="word replace" title="REPLACE">චලනය</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word replace" title="REPLACE">එහෙත්</span> <span class="word equal" title="EQUAL">දණ්ඩ</span> <span class="word replace" title="REPLACE">යටින්</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">ධරය</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වීමක්</span> <span class="word equal" title="EQUAL">සිදු</span> <span class="word equal" title="EQUAL">නොවේ.</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වූ</span> <span class="word replace" title="REPLACE">දුර</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word equal" title="EQUAL">ද</span> <span class="word equal" title="EQUAL">ආයාස</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යය</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වූ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word equal" title="EQUAL">ද</span> <span class="word replace" title="REPLACE">හැඳින්වේ.භාරය</span> <span class="word replace" title="REPLACE">රැදී</span> <span class="word equal" title="EQUAL">ඇති</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">ධරයට</span> <span class="word replace" title="REPLACE">ඇතිදුර</span> <span class="word equal" title="EQUAL">භාර</span> <span class="word equal" title="EQUAL">බාහුව</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word equal" title="EQUAL">වේ.</span> <span class="word equal" title="EQUAL">ආයාසයේ</span> <span class="word replace" title="REPLACE">යෙදුම්</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">ධරයට</span> <span class="word replace" title="REPLACE">ඇතිදුර</span> <span class="word equal" title="EQUAL">ආයාස</span> <span class="word replace" title="REPLACE">භාහුව</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word replace" title="REPLACE">වේ.ඉහතින්</span> <span class="word replace" title="REPLACE">දැක්</span> <span class="word replace" title="REPLACE">වූ</span> <span class="word equal" title="EQUAL">චලන</span> <span class="word equal" title="EQUAL">අතර</span> <span class="word equal" title="EQUAL">අනුපාතය</span> <span class="word replace" title="REPLACE">ප‍්‍රවේග</span> <span class="word equal" title="EQUAL">අනුපාතය</span> <span class="word equal" title="EQUAL">යන</span> <span class="word equal" title="EQUAL">රාශියෙන්</span> <span class="word replace" title="REPLACE">දැක්වේ.</span> <span class="word replace" title="REPLACE">$$</span> <span class="word replace" title="REPLACE">\text{ප්රවේග</span> <span class="word equal" title="EQUAL">අනුපාතය}</span> <span class="word equal" title="EQUAL">=</span> <span class="word equal" title="EQUAL">\frac{\text{ආයාසය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර}}{\text{භාරය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර}}</span> <span class="word equal" title="EQUAL">$$</span> <span class="word equal" title="EQUAL">$$</span> <span class="word replace" title="REPLACE">\text{භාරය</span> <span class="word replace" title="REPLACE">ගමන්</span> <span class="word replace" title="REPLACE">කළ</span> <span class="word replace" title="REPLACE">දුර}</span> <span class="word equal" title="EQUAL">=</span> <span class="word equal" title="EQUAL">\frac{\text{ආයාස</span> <span class="word equal" title="EQUAL">බාහුවේ</span> <span class="word equal" title="EQUAL">දිග}}{\text{භාර</span> <span class="word equal" title="EQUAL">බාහුවේ</span> <span class="word equal" title="EQUAL">දිග}}</span> <span class="word equal" title="EQUAL">$$</span> <span class="word replace" title="REPLACE">ලීවර/කප්පි</span> <span class="word equal" title="EQUAL">භාවිත</span> <span class="word equal" title="EQUAL">කර</span> <span class="word equal" title="EQUAL">බලය</span> <span class="word equal" title="EQUAL">සම්ප්‍රේෂණය</span> <span class="word equal" title="EQUAL">කිරීම</span> <span class="word replace" title="REPLACE">මගින්</span> <span class="word replace" title="REPLACE">කාර්යක්ෂමතාවය</span> <span class="word replace" title="REPLACE">ඉහළ</span> <span class="word replace" title="REPLACE">නංවා</span> <span class="word replace" title="REPLACE">ගත</span> <span class="word replace" title="REPLACE">හැක.</span> <span class="word replace" title="REPLACE">විශාල</span> <span class="word replace" title="REPLACE">වූ</span> <span class="word replace" title="REPLACE">බරක්</span> <span class="word replace" title="REPLACE">ඔසවා</span> <span class="word replace" title="REPLACE">තැබීමට</span> <span class="word replace" title="REPLACE">හැකි</span> <span class="word replace" title="REPLACE">වීම</span> <span class="word replace" title="REPLACE">මෙහි</span> <span class="word replace" title="REPLACE">විශේෂ</span> <span class="word replace" title="REPLACE">ලක්ෂණය</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word equal" title="EQUAL">මෙම</span> <span class="word equal" title="EQUAL">පද්ධති</span> <span class="word equal" title="EQUAL">ලීවර</span> <span class="word replace" title="REPLACE">(Levers)</span> <span class="word equal" title="EQUAL">පද්ධති</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word replace" title="REPLACE">හඳුන්වයි.</span> <span class="word replace" title="REPLACE">පලමු/දෙවන/තුන්වන</span> <span class="word replace" title="REPLACE">පන්තියේ</span> <span class="word replace" title="REPLACE">ලීවර</span> <span class="word replace" title="REPLACE">මේ</span> <span class="word replace" title="REPLACE">සම්බන්ධයෙන්</span> <span class="word replace" title="REPLACE">කරනු</span> <span class="word replace" title="REPLACE">ලබයි.</span> <span class="word replace" title="REPLACE">1.</span> <span class="word replace" title="REPLACE">බර</span> <span class="word replace" title="REPLACE">ඔසවන</span> <span class="word replace" title="REPLACE">දොඹකර</span> <span class="word replace" title="REPLACE">ආදී</span> <span class="word replace" title="REPLACE">එසවුම්</span> <span class="word replace" title="REPLACE">උපකරණ.</span> <span class="word replace" title="REPLACE">2.</span> <span class="word replace" title="REPLACE">යතුර</span> <span class="word equal" title="EQUAL">හා</span> <span class="word replace" title="REPLACE">ඉස්කුරුප්පු</span> <span class="word replace" title="REPLACE">නියන</span> <span class="word replace" title="REPLACE">වැනි</span> <span class="word replace" title="REPLACE">උපකරණ</span> <span class="word equal" title="EQUAL">(6.26</span> <span class="word equal" title="EQUAL">රූපය)</span> <span class="word replace" title="REPLACE">3.</span> <span class="word replace" title="REPLACE">ළිඳෙන්</span> <span class="word replace" title="REPLACE">වතුර</span> <span class="word replace" title="REPLACE">ඇදීමට</span> <span class="word replace" title="REPLACE">ඉදිකරන</span> <span class="word replace" title="REPLACE">රෝදයේ</span> <span class="word replace" title="REPLACE">නියමය</span> <span class="word replace" title="REPLACE">උපයෝගී</span> <span class="word replace" title="REPLACE">කර</span> <span class="word replace" title="REPLACE">ගනී.</span> <span class="word replace" title="REPLACE">4.</span> <span class="word replace" title="REPLACE">වාහන</span> <span class="word replace" title="REPLACE">වල</span> <span class="word replace" title="REPLACE">සුක්කානම,</span> <span class="word equal" title="EQUAL">කරත්ත</span> <span class="word replace" title="REPLACE">රෝදය,</span> <span class="word replace" title="REPLACE">බයිසිකල්</span> <span class="word replace" title="REPLACE">පැඩලය</span> <span class="word replace" title="REPLACE">ආදියට</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ගනී.</span> <span class="word replace" title="REPLACE">5.</span> <span class="word replace" title="REPLACE">යාන්ත්‍රික</span> <span class="word replace" title="REPLACE">වාසිය</span> <span class="word replace" title="REPLACE">කීයක්ද</span> <span class="word replace" title="REPLACE">යන්න</span> <span class="word replace" title="REPLACE">සොයන්න.</span> <span class="word replace" title="REPLACE">6.</span> <span class="word replace" title="REPLACE">කතුර,</span> <span class="word equal" title="EQUAL">අඬු,</span> <span class="word replace" title="REPLACE">බෝතල්</span> <span class="word replace" title="REPLACE">මූඩිය</span> <span class="word replace" title="REPLACE">අරින</span> <span class="word replace" title="REPLACE">උපකරණ,</span> <span class="word replace" title="REPLACE">ඇණ</span> <span class="word replace" title="REPLACE">ගලවන</span> <span class="word replace" title="REPLACE">යතුර</span> <span class="word replace" title="REPLACE">ආදිය</span> <span class="word replace" title="REPLACE">යොදාගෙන</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">උපකරණ.</span> <span class="word replace" title="REPLACE">7.</span> <span class="word replace" title="REPLACE">කමතේ</span> <span class="word replace" title="REPLACE">ගොයම්</span> <span class="word replace" title="REPLACE">පාගන</span> <span class="word replace" title="REPLACE">විට</span> <span class="word replace" title="REPLACE">හරකුන්</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ගනී.</span> <span class="word replace" title="REPLACE">8.</span> <span class="word replace" title="REPLACE">ඉස්කුරුප්පු</span> <span class="word replace" title="REPLACE">ඇණ,</span> <span class="word replace" title="REPLACE">ජැක්</span> <span class="word replace" title="REPLACE">එක,</span> <span class="word equal" title="EQUAL">මෝටර්</span> <span class="word equal" title="EQUAL">රථ</span> <span class="word replace" title="REPLACE">එසවීමට</span> <span class="word replace" title="REPLACE">භාවිතා</span> <span class="word replace" title="REPLACE">කරන</span> <span class="word replace" title="REPLACE">උපකරණ</span> <span class="word replace" title="REPLACE">ආදිය</span> <span class="word replace" title="REPLACE">ද</span> <span class="word replace" title="REPLACE">ඉස්කුරුප්පු</span> <span class="word replace" title="REPLACE">නියමය</span> <span class="word replace" title="REPLACE">සදහා</span> <span class="word replace" title="REPLACE">උදාහරණ</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word equal" title="EQUAL">TEN</span>
+                        </div>
+                    </div>
+                    <div class="diff-column pred">
+                        <div class="column-header pred">Prediction</div>
+                        <div class="diff-content">
+                            <span class="word equal" title="EQUAL">No:</span> <span class="word equal" title="EQUAL">297</span> <span class="word equal" title="EQUAL">Date:</span> <span class="word equal" title="EQUAL">........................</span> <span class="word equal" title="EQUAL">ගලක්</span> <span class="word replace" title="REPLACE">ඔසවීමට</span> <span class="word equal" title="EQUAL">දණ්ඩක්</span> <span class="word equal" title="EQUAL">යොදා</span> <span class="word equal" title="EQUAL">ගන්නා</span> <span class="word equal" title="EQUAL">අවස්ථාව</span> <span class="word equal" title="EQUAL">සලකමු.</span> <span class="word equal" title="EQUAL">දණ්ඩට</span> <span class="word equal" title="EQUAL">යටින්</span> <span class="word equal" title="EQUAL">තබා</span> <span class="word equal" title="EQUAL">ඇති</span> <span class="word equal" title="EQUAL">ලී</span> <span class="word equal" title="EQUAL">කොටය</span> <span class="word equal" title="EQUAL">(ආධාරකය)</span> <span class="word replace" title="REPLACE">ධරය</span> <span class="word replace" title="REPLACE">වන</span> <span class="word equal" title="EQUAL">අතර</span> <span class="word equal" title="EQUAL">දණ්ඩ</span> <span class="word equal" title="EQUAL">මගින්</span> <span class="word replace" title="REPLACE">ඔසවන</span> <span class="word equal" title="EQUAL">ගල</span> <span class="word equal" title="EQUAL">(දණ්ඩ</span> <span class="word equal" title="EQUAL">මත</span> <span class="word replace" title="REPLACE">යෙදෙන</span> <span class="word replace" title="REPLACE">බර)</span> <span class="word replace" title="REPLACE">භාරය</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word replace" title="REPLACE">මෙවිට</span> <span class="word equal" title="EQUAL">දණ්ඩේ</span> <span class="word equal" title="EQUAL">අනික්</span> <span class="word equal" title="EQUAL">කෙළවරට</span> <span class="word equal" title="EQUAL">යොදන</span> <span class="word equal" title="EQUAL">බලය</span> <span class="word equal" title="EQUAL">(ගල</span> <span class="word replace" title="REPLACE">ඔසවීමට</span> <span class="word equal" title="EQUAL">යොදන</span> <span class="word equal" title="EQUAL">බලය)</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word equal" title="EQUAL">වේ.</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word replace" title="REPLACE">මගින්</span> <span class="word replace" title="REPLACE">ධරයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word equal" title="EQUAL">ද,</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word replace" title="REPLACE">යොදන</span> <span class="word equal" title="EQUAL">ලබන</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word replace" title="REPLACE">ද,</span> <span class="word replace" title="REPLACE">පවතියි.</span> <span class="word replace" title="REPLACE">මෙහි</span> <span class="word equal" title="EQUAL">දණ්ඩ</span> <span class="word replace" title="REPLACE">මගින්</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">බරය</span> <span class="word equal" title="EQUAL">යම්</span> <span class="word equal" title="EQUAL">දුරක්</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වීමක්</span> <span class="word equal" title="EQUAL">සිදු</span> <span class="word equal" title="EQUAL">නොවේ.</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වූ</span> <span class="word replace" title="REPLACE">ඒ</span> <span class="word equal" title="EQUAL">භාරය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word equal" title="EQUAL">ද</span> <span class="word equal" title="EQUAL">ආයාස</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යය</span> <span class="word equal" title="EQUAL">චලනය</span> <span class="word equal" title="EQUAL">වූ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ආයාසය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word equal" title="EQUAL">ද</span> <span class="word replace" title="REPLACE">හැඳින්</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word replace" title="REPLACE">භාරය</span> <span class="word replace" title="REPLACE">යෙදී</span> <span class="word equal" title="EQUAL">ඇති</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">ධරයට</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">දුර</span> <span class="word equal" title="EQUAL">භාර</span> <span class="word equal" title="EQUAL">බාහුව</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word equal" title="EQUAL">වේ.</span> <span class="word equal" title="EQUAL">ආයාසයේ</span> <span class="word replace" title="REPLACE">යෙදී</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word equal" title="EQUAL">ලක්ෂ්‍යයේ</span> <span class="word equal" title="EQUAL">සිට</span> <span class="word equal" title="EQUAL">ධරයට</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">දුර</span> <span class="word equal" title="EQUAL">ආයාස</span> <span class="word replace" title="REPLACE">බාහුව</span> <span class="word equal" title="EQUAL">නම්</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word replace" title="REPLACE">ඉහතින්</span> <span class="word replace" title="REPLACE">දැක්වූ</span> <span class="word equal" title="EQUAL">චලන</span> <span class="word equal" title="EQUAL">අතර</span> <span class="word equal" title="EQUAL">අනුපාතය</span> <span class="word replace" title="REPLACE">ප්‍රවේග</span> <span class="word equal" title="EQUAL">අනුපාතය</span> <span class="word equal" title="EQUAL">යන</span> <span class="word equal" title="EQUAL">රාශියෙන්</span> <span class="word replace" title="REPLACE">දැක්</span> <span class="word replace" title="REPLACE">වේ.</span> <span class="word replace" title="REPLACE">$$</span> <span class="word replace" title="REPLACE">\text{ප්‍රවේග</span> <span class="word equal" title="EQUAL">අනුපාතය}</span> <span class="word equal" title="EQUAL">=</span> <span class="word equal" title="EQUAL">\frac{\text{ආයාසය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර}}{\text{භාරය</span> <span class="word equal" title="EQUAL">ගමන්</span> <span class="word equal" title="EQUAL">කළ</span> <span class="word equal" title="EQUAL">දුර}}</span> <span class="word equal" title="EQUAL">$$</span> <span class="word equal" title="EQUAL">$$</span> <span class="word replace" title="REPLACE">\frac{\text{ආයාසය</span> <span class="word replace" title="REPLACE">ගමන්</span> <span class="word replace" title="REPLACE">කළ</span> <span class="word replace" title="REPLACE">දුර}}{\text{භාරය</span> <span class="word replace" title="REPLACE">ගමන්</span> <span class="word replace" title="REPLACE">කළ</span> <span class="word replace" title="REPLACE">දුර}}</span> <span class="word equal" title="EQUAL">=</span> <span class="word equal" title="EQUAL">\frac{\text{ආයාස</span> <span class="word equal" title="EQUAL">බාහුවේ</span> <span class="word equal" title="EQUAL">දිග}}{\text{භාර</span> <span class="word equal" title="EQUAL">බාහුවේ</span> <span class="word equal" title="EQUAL">දිග}}</span> <span class="word equal" title="EQUAL">$$</span> <span class="word replace" title="REPLACE">ලීවර/හැරප</span> <span class="word equal" title="EQUAL">භාවිත</span> <span class="word equal" title="EQUAL">කර</span> <span class="word equal" title="EQUAL">බලය</span> <span class="word equal" title="EQUAL">සම්ප්‍රේෂණය</span> <span class="word equal" title="EQUAL">කිරීම</span> <span class="word replace" title="REPLACE">සරල</span> <span class="word replace" title="REPLACE">යාන්ත්‍රණයක්</span> <span class="word replace" title="REPLACE">වන</span> <span class="word replace" title="REPLACE">අතර</span> <span class="word replace" title="REPLACE">කාර්මික</span> <span class="word replace" title="REPLACE">විප්ලවයේ</span> <span class="word replace" title="REPLACE">මුල්</span> <span class="word replace" title="REPLACE">අවධියේ</span> <span class="word replace" title="REPLACE">බොහෝ</span> <span class="word replace" title="REPLACE">යන්ත්‍ර</span> <span class="word replace" title="REPLACE">සූත්‍රවල</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ගන්නා</span> <span class="word replace" title="REPLACE">ලදී.</span> <span class="word equal" title="EQUAL">මෙම</span> <span class="word equal" title="EQUAL">පද්ධති</span> <span class="word equal" title="EQUAL">ලීවර</span> <span class="word replace" title="REPLACE">පන්තීන්</span> <span class="word replace" title="REPLACE">ලෙස</span> <span class="word replace" title="REPLACE">ද</span> <span class="word equal" title="EQUAL">පද්ධති</span> <span class="word equal" title="EQUAL">ලෙස</span> <span class="word replace" title="REPLACE">ද</span> <span class="word replace" title="REPLACE">භාවිතයේ</span> <span class="word replace" title="REPLACE">පවතී.</span> <span class="word replace" title="REPLACE">ලීවර/හැරප</span> <span class="word replace" title="REPLACE">භාවිත</span> <span class="word replace" title="REPLACE">කර</span> <span class="word replace" title="REPLACE">එම</span> <span class="word replace" title="REPLACE">සම්ප්‍රේෂණය</span> <span class="word replace" title="REPLACE">කරන</span> <span class="word replace" title="REPLACE">අවස්ථා.</span> <span class="word replace" title="REPLACE">01.</span> <span class="word replace" title="REPLACE">බස්</span> <span class="word replace" title="REPLACE">රථවල</span> <span class="word replace" title="REPLACE">ගියර</span> <span class="word replace" title="REPLACE">මාරු</span> <span class="word replace" title="REPLACE">කිරීමට</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">පද්ධතිය.</span> <span class="word replace" title="REPLACE">02.</span> <span class="word replace" title="REPLACE">සවල්</span> <span class="word equal" title="EQUAL">හා</span> <span class="word replace" title="REPLACE">තැටිවල</span> <span class="word replace" title="REPLACE">කිරණ</span> <span class="word replace" title="REPLACE">පද්ධති</span> <span class="word replace" title="REPLACE">සඳහා</span> <span class="word equal" title="EQUAL">(6.26</span> <span class="word equal" title="EQUAL">රූපය)</span> <span class="word replace" title="REPLACE">03.</span> <span class="word replace" title="REPLACE">අත්හල්</span> <span class="word equal" title="EQUAL">කරත්ත</span> <span class="word replace" title="REPLACE">ඉදිරියට</span> <span class="word replace" title="REPLACE">තල්ලු</span> <span class="word replace" title="REPLACE">කලේ</span> <span class="word replace" title="REPLACE">කිරණ</span> <span class="word replace" title="REPLACE">පද්ධතිය</span> <span class="word replace" title="REPLACE">සඳහා.</span> <span class="word replace" title="REPLACE">04.</span> <span class="word replace" title="REPLACE">මෝටර්</span> <span class="word replace" title="REPLACE">රථවල</span> <span class="word replace" title="REPLACE">(පැරණි)</span> <span class="word replace" title="REPLACE">වාහනවල</span> <span class="word replace" title="REPLACE">තිරිංග</span> <span class="word replace" title="REPLACE">ක්‍රියා</span> <span class="word replace" title="REPLACE">කරවීමට</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">පද්ධතිය.</span> <span class="word replace" title="REPLACE">05.</span> <span class="word replace" title="REPLACE">යතුරු</span> <span class="word replace" title="REPLACE">පැදිවල</span> <span class="word replace" title="REPLACE">තිරිංග</span> <span class="word replace" title="REPLACE">ක්‍රියා</span> <span class="word replace" title="REPLACE">කරවීමට</span> <span class="word replace" title="REPLACE">සඳහා.</span> <span class="word replace" title="REPLACE">06.</span> <span class="word replace" title="REPLACE">ඇණ</span> <span class="word replace" title="REPLACE">මුරිච්චි</span> <span class="word replace" title="REPLACE">තද</span> <span class="word replace" title="REPLACE">කිරීමට,</span> <span class="word replace" title="REPLACE">ලිහිල්</span> <span class="word replace" title="REPLACE">කිරීමට,</span> <span class="word replace" title="REPLACE">අත්</span> <span class="word replace" title="REPLACE">කතුරට</span> <span class="word replace" title="REPLACE">සඳහා</span> <span class="word replace" title="REPLACE">යොදාගෙන</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">පද්ධතිය.</span> <span class="word replace" title="REPLACE">07.</span> <span class="word replace" title="REPLACE">දුම්රිය</span> <span class="word replace" title="REPLACE">මාර්ගවල</span> <span class="word replace" title="REPLACE">සිග්නල්</span> <span class="word replace" title="REPLACE">කණු</span> <span class="word replace" title="REPLACE">ක්‍රියාත්මක</span> <span class="word replace" title="REPLACE">කිරීමට</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ඇති</span> <span class="word replace" title="REPLACE">පද්ධතිය.</span> <span class="word replace" title="REPLACE">08.</span> <span class="word replace" title="REPLACE">කතුරු,</span> <span class="word equal" title="EQUAL">අඬු,</span> <span class="word replace" title="REPLACE">යතුරු</span> <span class="word replace" title="REPLACE">පැදි,</span> <span class="word equal" title="EQUAL">මෝටර්</span> <span class="word equal" title="EQUAL">රථ</span> <span class="word replace" title="REPLACE">වැනි</span> <span class="word replace" title="REPLACE">යන්ත්‍රවල</span> <span class="word replace" title="REPLACE">තිරිංග</span> <span class="word replace" title="REPLACE">පද්ධතිය</span> <span class="word replace" title="REPLACE">සඳහා</span> <span class="word replace" title="REPLACE">ද</span> <span class="word replace" title="REPLACE">බලය</span> <span class="word replace" title="REPLACE">සම්ප්‍රේෂණය</span> <span class="word replace" title="REPLACE">කිරීමට</span> <span class="word replace" title="REPLACE">සඳහා</span> <span class="word replace" title="REPLACE">ද</span> <span class="word replace" title="REPLACE">ලීවර/හැරප</span> <span class="word replace" title="REPLACE">යොදා</span> <span class="word replace" title="REPLACE">ගනී.</span> <span class="word equal" title="EQUAL">TEN</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // Add hover effects
+        document.querySelectorAll('.word:not(.equal)').forEach(word => {
+            word.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.1)';
+                this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            });
+            word.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

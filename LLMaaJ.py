@@ -37,13 +37,12 @@ langfuse = init_langfuse()
 # Initialize Gemini client
 @st.cache_resource
 def init_gemini_client():
-    return genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    return genai.Client(api_key=os.getenv("GOOGLE_API_KEY"), timeot=600)
 
 # Prompt templates
 PROMPTS = {
-    "Simple Markdown": """
-## Task
-Analyze the document image and provide:
+    "Simple Markdown": """## Task
+Analyze the document pdf and provide:
 1. **Transcribe** all text exactly as written
 2. **Describe** any diagrams, tables, or visual elements
 
@@ -51,10 +50,8 @@ Analyze the document image and provide:
 Respond in **Markdown format**:
 - Use headings, lists, and tables to match the document structure
 - For diagrams, describe the flow (e.g., A → B → C)
-- Mark unclear text as `[unclear]`
-""",
-    "Detailed Markdown": """
-# Document Analysis
+- Mark unclear text as `[unclear]`""",
+    "Detailed Markdown": """# Document Analysis
 
 ## Task
 Analyze the document and provide:
@@ -82,10 +79,8 @@ Output using the `document_elements` array:
 ## Instructions
 - **Text:** Transcribe all visible text
 - **Diagrams:** Describe flow and connections using FLOWS_TO
-- **Tables/Forms:** Link labels to values using VALUE_FOR
-""",
-    "JSON Structure": """
-Task: Identify all meaningful blocks of content and extract the structural relationships between them.
+- **Tables/Forms:** Link labels to values using VALUE_FOR""",
+    "JSON Structure": """Task: Identify all meaningful blocks of content and extract the structural relationships between them.
 
 JSON Schema: Output using the 'document_elements' array, where each object contains:
 - id (string): Unique identifier (e.g., B1, N1)
@@ -97,15 +92,32 @@ JSON Schema: Output using the 'document_elements' array, where each object conta
 
 Specific Instructions:
 1. For diagrams: Use DIAGRAM_NODE for shapes, DIAGRAM_ARROW for lines. Link with FLOWS_TO.
-2. For forms/tables: Use KEY_VALUE_PAIR. Link labels to values using VALUE_FOR.
-""",
+2. For forms/tables: Use KEY_VALUE_PAIR. Link labels to values using VALUE_FOR.""",
     "Custom": ""
 }
 
 
+import mimetypes
+from google import genai
+from google.genai import types
+
+def init_gemini_client_v1alpha():
+    """Initializes the client specifically for v1alpha to support media_resolution."""
+    # Ensure your API key is set in environment variables or passed here
+    return genai.Client(http_options={'api_version': 'v1alpha'}, api_key=os.getenv("GOOGLE_API_KEY"))
+
 @observe(name="streamlit-gemini-call", as_type="generation", capture_input=False, capture_output=True)
-def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_paths=None, generation_config=None, session_id="streamlit_session"):
-    """Process files with Gemini and trace with Langfuse."""
+def call_gemini(
+    input_prompt, 
+    ground_truth, 
+    model_id="gemini-2.0-flash", 
+    file_paths=None, 
+    generation_config=None, 
+    session_id="streamlit_session",
+    media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH # Default to High
+):
+    """Process files with Gemini (Inline) to support media_resolution."""
+    
     with propagate_attributes(
         user_id="streamlit_user",
         session_id=session_id,
@@ -113,22 +125,39 @@ def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_pa
         metadata={"source": "streamlit_app"},
         version="1.0.0",
     ):
-        client = init_gemini_client()
+        # 1. We must use v1alpha for media_resolution support
+        client = init_gemini_client_v1alpha()
         
         if file_paths is None:
             file_paths = []
         elif isinstance(file_paths, str):
             file_paths = [file_paths]
         
-        uploaded_files = []
+        media_parts = []
         
         try:
+            # 2. Prepare Inline Data Parts (Instead of uploading)
             for file_path in file_paths:
-                uploaded_file = client.files.upload(file=file_path)
-                uploaded_files.append(uploaded_file)
-            
-            contents = [input_prompt] + uploaded_files
+                # Guess mime type (e.g., 'image/jpeg') based on file extension
+                mime_type, _ = mimetypes.guess_type(file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream" # Fallback
 
+                with open(file_path, 'rb') as f:
+                    file_bytes = f.read()
+
+                # Create the part with the specific resolution setting
+                part = types.Part.from_bytes(
+                    data=file_bytes,
+                    mime_type=mime_type,
+                    media_resolution=media_resolution
+                )
+                media_parts.append(part)
+            
+            # Combine text prompt with image parts
+            contents = [input_prompt] + media_parts
+
+            # 3. Generate Content
             if generation_config:
                 response = client.models.generate_content(
                     model=model_id,
@@ -141,30 +170,36 @@ def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_pa
                     contents=contents,
                 )
             
+            # 4. Extract Usage Metadata
             usage_meta = response.usage_metadata
             prompt_tokens = usage_meta.prompt_token_count or 0
             candidate_tokens = usage_meta.candidates_token_count or 0
-            thought_tokens = usage_meta.thoughts_token_count or 0
+            thought_tokens = getattr(usage_meta, 'thoughts_token_count', 0) or 0
             cached_tokens = usage_meta.cached_content_token_count or 0
             total_tokens = usage_meta.total_token_count or 0
 
             effective_output_tokens = candidate_tokens + thought_tokens
 
+            # 5. Log to Langfuse
             langfuse.update_current_trace(
                 input={
                     "prompt": input_prompt,
-                    "files": [f.name for f in uploaded_files],
-                    "file_count": len(uploaded_files)
+                    # We log file names, but remember data was sent inline
+                    "files": [fp for fp in file_paths], 
+                    "resolution_setting": str(media_resolution)
                 },
                 output=response.text,
                 metadata={
                     "ground_truth": ground_truth,
-                    "model_id": model_id
+                    "model_id": model_id,
+                    "method": "inline_data"
                 }
             )
 
-            INPUT_PRICE_PER_TOKEN = 0.3 / 1000000
-            OUTPUT_PRICE_PER_TOKEN = 2.5 / 1000000
+            # 6. Calculate Costs 
+            # Note: Prices here are examples; verify current Gemini 2.0 Flash pricing
+            INPUT_PRICE_PER_TOKEN = 0.3 / 1000000 # Verify for v1alpha/2.0
+            OUTPUT_PRICE_PER_TOKEN = 2.5 / 1000000 # Verify for v1alpha/2.0
             CACHING_PRICE_PER_TOKEN = 0.03 / 1000000
 
             input_cost = prompt_tokens * INPUT_PRICE_PER_TOKEN
@@ -198,13 +233,128 @@ def call_gemini(input_prompt, ground_truth, model_id="gemini-2.0-flash", file_pa
             
         except Exception as e:
             raise e
-        finally:
-            for uploaded_file in uploaded_files:
-                try:
-                    client.files.delete(name=uploaded_file.name)
-                except Exception:
-                    pass
 
+# import io
+# import time
+
+# @observe(name="streamlit-gemini-call", as_type="generation", capture_input=False, capture_output=True)
+# def call_gemini(
+#     input_prompt, 
+#     ground_truth, 
+#     model_id="gemini-2.0-flash", 
+#     file_paths=None, 
+#     generation_config=None, 
+#     session_id="streamlit_session",
+#     media_resolution=None # We handle resolution via DPI manually now
+# ):
+#     """
+#     Process files with local optimization to prevent 15-minute hangs.
+#     """
+    
+#     with propagate_attributes(
+#         user_id="streamlit_user",
+#         session_id=session_id,
+#         tags=["gemini", "streamlit", "document-analysis"],
+#         metadata={"source": "streamlit_app"},
+#         version="1.0.0",
+#     ):
+#         # Initialize client with a safe timeout
+#         client = init_gemini_client_v1alpha()
+        
+#         if file_paths is None:
+#             file_paths = []
+#         elif isinstance(file_paths, str):
+#             file_paths = [file_paths]
+        
+#         media_parts = []
+        
+#         # UI Status Container to show progress
+#         with st.status("Processing document...", expanded=True) as status:
+            
+#             try:
+#                 for file_path in file_paths:
+#                     mime_type, _ = mimetypes.guess_type(file_path)
+                    
+#                     # --- PDF HANDLING ---
+#                     if mime_type == "application/pdf" or file_path.lower().endswith(".pdf"):
+#                         status.write(f"📄 Converting PDF: {Path(file_path).name}")
+                        
+#                         with open(file_path, 'rb') as f:
+#                             pdf_bytes = f.read()
+                        
+#                         # OPTIMIZATION: Use 200 DPI (Sweet spot for Gemini) 
+#                         # 300 DPI creates massive files that choke the API.
+#                         # 200 DPI is still "High Res" for an LLM.
+#                         start_time = time.time()
+#                         images = convert_from_bytes(pdf_bytes, dpi=200, fmt='jpeg')
+                        
+#                         status.write(f"✅ Converted {len(images)} pages in {time.time() - start_time:.1f}s")
+                        
+#                         # Process images
+#                         for i, img in enumerate(images):
+#                             status.write(f"Processing Page {i+1}...")
+                            
+#                             img_byte_arr = io.BytesIO()
+#                             # OPTIMIZATION: JPEG Quality 85 reduces size by 4x without visible loss
+#                             img.save(img_byte_arr, format='JPEG', quality=85) 
+#                             img_bytes = img_byte_arr.getvalue()
+                            
+#                             # Create part (We set resolution here via pixel density, not API param)
+#                             part = types.Part.from_bytes(
+#                                 data=img_bytes,
+#                                 mime_type="image/jpeg"
+#                             )
+#                             media_parts.append(part)
+
+#                     # --- IMAGE HANDLING ---
+#                     else:
+#                         status.write(f"🖼️ Reading image: {Path(file_path).name}")
+#                         if not mime_type:
+#                             mime_type = "application/octet-stream"
+
+#                         with open(file_path, 'rb') as f:
+#                             file_bytes = f.read()
+
+#                         part = types.Part.from_bytes(
+#                             data=file_bytes,
+#                             mime_type=mime_type
+#                         )
+#                         media_parts.append(part)
+                
+#                 # Combine prompt with images
+#                 contents = [input_prompt] + media_parts
+                
+#                 status.write(f"🚀 Sending request to Gemini ({len(media_parts)} parts)...")
+                
+#                 # Generate Content
+#                 if generation_config:
+#                     response = client.models.generate_content(
+#                         model=model_id,
+#                         contents=contents,
+#                         config=generation_config,
+#                     )
+#                 else:
+#                     response = client.models.generate_content(
+#                         model=model_id,
+#                         contents=contents,
+#                     )
+                
+#                 status.update(label="Analysis Complete!", state="complete", expanded=False)
+                
+#                 # Extract Metadata
+#                 usage_meta = response.usage_metadata
+#                 usage_info = {
+#                     "prompt_tokens": usage_meta.prompt_token_count if usage_meta else 0,
+#                     "output_tokens": usage_meta.candidates_token_count if usage_meta else 0,
+#                     "total_tokens": usage_meta.total_token_count if usage_meta else 0,
+#                     "total_cost": 0.0 
+#                 }
+
+#                 return response.text, ground_truth, usage_info
+                
+#             except Exception as e:
+#                 status.update(label="Error occurred", state="error")
+#                 raise e
 
 @observe(as_type="evaluator", name="evaluate-prediction")
 def evaluate_with_gemini(prediction, ground_truth, session_id="streamlit_session"):
@@ -225,7 +375,7 @@ IMPORTANT: Return ONLY a valid JSON object. No markdown, no code blocks, no expl
     eval_prompt = f"""
 You are evaluating a document analysis output against the ground truth.
 
-Analyze both texts carefully and provide a comprehensive evaluation.
+The evaluation must focus solely on the content and structure of the raw analysis output against the ground truth, disregarding any external annotations, comments, or corrections (e.g., 'teacher's marks').
 
 Return a JSON object with these fields:
 {{
@@ -734,7 +884,7 @@ def main():
         st.subheader("Generation Settings")
         
         temperature = st.slider("Temperature", 0.0, 2.0, 0.0, 0.1)
-        max_tokens = st.number_input("Max Output Tokens", 256, 100000, 100000, 256)
+        max_tokens = st.number_input("Max Output Tokens", 256, 65536, 65536, 256)
         
         enable_thinking = st.checkbox("Enable Thinking Mode", True)
         thinking_budget = 0
@@ -780,6 +930,7 @@ def main():
     ])
 
     # Tab 1: Upload and Analyze
+    file_name_x = "Unknown"
     with tab1:
         col1, col2 = st.columns([1, 1])
         
@@ -791,8 +942,11 @@ def main():
                 type=["pdf", "png", "jpg", "jpeg", "webp", "gif"],
                 key="doc_uploader"
             )
-            
+
+            print(uploaded_doc)
+
             if uploaded_doc:
+                file_name_x = uploaded_doc.name
                 st.success(f"Uploaded: {uploaded_doc.name}")
                 if uploaded_doc.type.startswith("image/"):
                     st.image(uploaded_doc, caption="Document Preview", use_container_width=True)
@@ -822,7 +976,7 @@ def main():
             with st.spinner("Processing document with Gemini..."):
                 try:
                     temp_path = save_uploaded_file(uploaded_doc)
-                    print(max_tokens)
+                    print("max_tokens:", max_tokens, "temperature:", temperature, "model:", model_id)
                     gen_config_params = {
                         "temperature": temperature,
                         "max_output_tokens": max_tokens,
@@ -901,7 +1055,7 @@ def main():
                 st.download_button(
                     label="Download as Markdown",
                     data=st.session_state.prediction,
-                    file_name=f"analysis_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    file_name=f"analysis_result_{file_name_x}.md",
                     mime="text/markdown",
                     use_container_width=True
                 )
