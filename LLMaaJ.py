@@ -51,49 +51,81 @@ Respond in **Markdown format**:
 - Use headings, lists, and tables to match the document structure
 - For diagrams, describe the flow (e.g., A → B → C)
 - Mark unclear text as `[unclear]`""",
-    "Detailed Markdown": """# Document Analysis
 
-## Task
-Analyze the document and provide:
-1. A markdown description of the page content (diagrams, tables, images, etc.)
-2. Complete transcription of all text
+    "Detailed Markdown": """## Task
+Analyze the provided PDF and generate a Markdown transcription.
+
+## Critical Rules for Transcription (Read Carefully)
+1.  **Visuals Over Logic:** Trust your eyes, not your logic. If the visual text conflicts with what "should" be there, transcribe the visual text.
+2.  **No Contextual Auto-Complete:**
+    *   **Do not** replace names with subject terminology. (e.g., If a student writes `Density = John / Mary`, do NOT write `Density = Mass / Volume`).
+    *   **Do not** fix Sinhala/local language terms based on context. Read the specific characters written.
+3.  **Preserve Errors & Nonsense:**
+    *   If a student writes a mathematically impossible statement (e.g., `2 + 2 = 5`), transcribe it exactly as `2 + 2 = 5`.
+    *   If a student invents a unit (e.g., `kg m^3 sh`), transcribe it exactly.
+4.  **LaTeX Formatting:** Use LaTeX for equations, but ensure the symbols/words inside the fraction match the handwriting exactly.
 
 ## Output Format
+Respond in **Markdown**.
+- Use headings and lists to match the document structure.
+- Place student answers in a specific block as requested.
 
-### 1. Page Description
-Provide a brief markdown summary describing:
-- Document type and layout
-- Visual elements present (diagrams, tables, charts, images)
-- Overall structure
+## Examples of Expected Behavior
+**Example 1 (Math Error):**
+*Student wrote:* "Sped = distanse * time"
+*AI Output:* "Sped = distanse * time" (Do NOT correct to Speed = distance / time)
 
-### 2. Transcription
-Output using the `document_elements` array:
+**Example 2 (Nonsense/Names in Formulas):**
+*Student wrote:* "Force = Apple / Orange"
+*AI Output:* "Force = Apple / Orange" (Do NOT correct to Force = Mass * Acceleration)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier (e.g., B1, N1) |
-| `text` | string | The transcribed content |
-| `type` | enum | TITLE, PARAGRAPH, LIST, TABLE_CELL, DIAGRAM_NODE, KEY_VALUE_PAIR |
-| `relations` | array | Connections: `target_id` and `relation_type` (FLOWS_TO, VALUE_FOR) |
+**Example 3 (Sinhala/Local Language):**
+*Student wrote:* "ඝනත්වය = දුල්ශ / පසිඳු"
+*AI Output:* "ඝනත්වය = දුල්ශ / පසිඳු" (Do NOT correct to ඝනත්වය = ස්කන්ධය / පරිමාව)""",
 
-## Instructions
-- **Text:** Transcribe all visible text
-- **Diagrams:** Describe flow and connections using FLOWS_TO
-- **Tables/Forms:** Link labels to values using VALUE_FOR""",
-    "JSON Structure": """Task: Identify all meaningful blocks of content and extract the structural relationships between them.
+    "Complex Markdown": """## Task
+Analyze the provided PDF and generate a Markdown transcription.
 
-JSON Schema: Output using the 'document_elements' array, where each object contains:
-- id (string): Unique identifier (e.g., B1, N1)
-- text (string): The transcribed content
-- type (enum): TITLE, PARAGRAPH, LIST, TABLE_CELL, DIAGRAM_NODE, DIAGRAM_ARROW, KEY_VALUE_PAIR
-- relations (array): Semantic connections with:
-- target_id (string): Connected element's id
-- relation_type (enum): FLOWS_TO, IS_LABEL_FOR, VALUE_FOR
+## Critical Rules for Transcription (Read Carefully)
+1.  **Visuals Over Logic:** Trust your eyes, not your logic. If the visual text conflicts with what "should" be there, transcribe the visual text.
+2.  **No Contextual Auto-Complete:**
+    *   **Do not** replace names with subject terminology. (e.g., If a student writes `Density = John / Mary`, do NOT write `Density = Mass / Volume`).
+    *   **Do not** fix Sinhala/local language terms based on context. Read the specific characters written.
+3.  **Preserve Errors & Nonsense:**
+    *   If a student writes a mathematically impossible statement (e.g., `2 + 2 = 5`), transcribe it exactly as `2 + 2 = 5`.
+    *   If a student invents a unit (e.g., `kg m^3 sh`), transcribe it exactly.
+4.  **LaTeX Formatting:** Use LaTeX for equations, but ensure the symbols/words inside the fraction match the handwriting exactly.
+5.  **Confidence Scoring (New):**
+    *   **Nonsense is NOT Low Confidence:** If a word is clearly written but makes no sense (e.g., "Apple"), transcribe it with **High Confidence**.
+    *   **Illegibility is Low Confidence:** If handwriting is messy, smudged, or ambiguous, transcribe your best guess and flag it in the "Low Confidence Log".
 
-Specific Instructions:
-1. For diagrams: Use DIAGRAM_NODE for shapes, DIAGRAM_ARROW for lines. Link with FLOWS_TO.
-2. For forms/tables: Use KEY_VALUE_PAIR. Link labels to values using VALUE_FOR.""",
-    "Custom": ""
+## Output Format
+Respond in **Markdown**.
+1.  **Transcription Body:** Use headings and lists to match the document structure.
+2.  **Low Confidence Log:** At the very bottom, create a table listing any words/symbols where visual confidence is below 80%. Use the format: `| Transcribed Text | Context/Location | Confidence Score (0-100%) | Reason (Smudge/Messy/Faint) |`
+
+## Examples of Expected Behavior
+**Example 1 (Math Error - High Confidence):**
+*Student wrote:* "Sped = distanse * time" (Handwriting is clear)
+*AI Output Body:* "Sped = distanse * time"
+*AI Output Log:* (Empty, because text was clear even though spelling was wrong)
+
+**Example 2 (Nonsense - High Confidence):**
+*Student wrote:* "Force = Apple / Orange" (Handwriting is clear)
+*AI Output Body:* "Force = Apple / Orange"
+*AI Output Log:* (Empty, because text was clear)
+
+**Example 3 (Sinhala/Local Language):**
+*Student wrote:* "ඝනත්වය = දුල්ශ / පසිඳු"
+*AI Output Body:* "ඝනත්වය = දුල්ශ / පසිඳු"
+
+**Example 4 (Low Confidence/Messy Handwriting):**
+*Student wrote:* A messy scrawl that looks like "Velocily" or "Velocity" but is smudged.
+*AI Output Body:* "Velocily"
+*AI Output Log:*
+| Transcribed Text | Context | Confidence | Reason |
+| :--- | :--- | :--- | :--- |
+| Velocily | Header of section 2 | 60% | Handwriting is smudged, 't' looks like 'l' |"""
 }
 
 
@@ -980,10 +1012,10 @@ def main():
                     gen_config_params = {
                         "temperature": temperature,
                         "max_output_tokens": max_tokens,
-                        "system_instruction": "You are an expert Document Analyzer.",
+                        "system_instruction": "You are a **Forensic Document Transcriber**. Your goal is to create a verbatim record of the document provided. You are **NOT** a tutor, a grader, or a spell-checker. You do not care about the correctness of the physics, mathematics, or language usage.",
                     }
                     
-                    if True:
+                    if enable_thinking:
                         gen_config_params["thinking_config"] = types.ThinkingConfig(
                             thinking_level="high",
                             include_thoughts=True,
