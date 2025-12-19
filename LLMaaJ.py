@@ -41,16 +41,6 @@ def init_gemini_client():
 
 # Prompt templates
 PROMPTS = {
-    "Simple Markdown": """## Task
-Analyze the document pdf and provide:
-1. **Transcribe** all text exactly as written
-2. **Describe** any diagrams, tables, or visual elements
-
-## Output
-Respond in **Markdown format**:
-- Use headings, lists, and tables to match the document structure
-- For diagrams, describe the flow (e.g., A → B → C)
-- Mark unclear text as `[unclear]`""",
 
     "Detailed Markdown": """## Task
 Analyze the provided PDF and generate a Markdown transcription.
@@ -82,6 +72,19 @@ Respond in **Markdown**.
 **Example 3 (Sinhala/Local Language):**
 *Student wrote:* "ඝනත්වය = දුල්ශ / පසිඳු"
 *AI Output:* "ඝනත්වය = දුල්ශ / පසිඳු" (Do NOT correct to ඝනත්වය = ස්කන්ධය / පරිමාව)""",
+
+
+    "Simple Markdown": """## Task
+Analyze the document pdf and provide:
+1. **Transcribe** all text exactly as written
+2. **Describe** any diagrams, tables, or visual elements
+
+## Output
+Respond in **Markdown format**:
+- Use headings, lists, and tables to match the document structure
+- For diagrams, describe the flow (e.g., A → B → C)
+- Mark unclear text as `[unclear]`""",
+
 
     "Complex Markdown": """## Task
 Analyze the provided PDF and generate a Markdown transcription.
@@ -907,7 +910,7 @@ def main():
         
         model_id = st.selectbox(
             "Select Model",
-            ["gemini-3-pro-preview", "gemini-2.0-flash", "gemini-2.5-flash"],
+            ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-2.0-flash", "gemini-2.5-flash"],
             index=0,
         )
         
@@ -920,8 +923,8 @@ def main():
         
         enable_thinking = st.checkbox("Enable Thinking Mode", True)
         thinking_budget = 0
-        if enable_thinking:
-            thinking_budget = st.slider("Thinking Budget", 20000, 20000, -1, 1024)
+        # if enable_thinking:
+        #     thinking_budget = st.slider("Thinking Budget", 20000, 20000, -1, 1024)
         
         st.divider()
         
@@ -1017,8 +1020,8 @@ def main():
                     
                     if enable_thinking:
                         gen_config_params["thinking_config"] = types.ThinkingConfig(
-                            thinking_level="high",
-                            include_thoughts=True,
+                            thinking_level="minimal",
+                            # include_thoughts=True,
                         )
                     
                     generation_config = types.GenerateContentConfig(**gen_config_params)
